@@ -1,0 +1,7 @@
+/target/
+/.tools/
+/dist/
+*.pdb
+*.ilk
+
+/.test-lab/

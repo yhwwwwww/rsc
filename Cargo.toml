@@ -1,0 +1,50 @@
+[package]
+name = "rsc"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "A single-binary Windows package manager compatible with Scoop"
+license = 'GPL-3.0-only'
+publish = false
+
+[lib]
+name = "rsc_core"
+path = "src/lib.rs"
+crate-type = ["rlib"]
+
+[[bin]]
+name = "rsc"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+console = "0.16"
+fs2 = "0.4"
+futures-util = "0.3"
+indicatif = "0.18"
+md-5 = "0.10"
+regex = "1"
+rusqlite = { version = "0.40.2", features = ["bundled"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-native-roots", "stream", "system-proxy", "blocking", "json"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+sha1 = "0.10"
+sha2 = "0.10"
+tempfile = "3"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "fs", "io-util", "time", "sync", "signal"] }
+url = "2"
+
+base64 = '0.22'
+chrono = { version = '0.4', default-features = false, features = ['clock', 'std'] }
+fancy-regex = '0.14'
+zip = { version = '4', default-features = false, features = ['deflate'] }
+quick-xml = '0.38'
+percent-encoding = '2'
+
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Storage_FileSystem", "Win32_Security", "Win32_System_Registry", "Win32_System_Environment", "Win32_System_Threading", "Win32_System_Diagnostics_ToolHelp", "Win32_UI_WindowsAndMessaging", "Win32_UI_Shell", "Win32_System_Com", "Win32_Networking_WinHttp"] }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "symbols"
