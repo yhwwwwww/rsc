@@ -249,7 +249,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=("metadata", "prepare", "publish", "bucket"))
     parser.add_argument("--assets", default="release-assets")
-    parser.add_argument("--bucket", default="scoop-bucket")
+    parser.add_argument("--bucket", default="kits")
     args = parser.parse_args()
     if args.action == "metadata":
         metadata()

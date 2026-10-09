@@ -21,18 +21,35 @@ rsc is an independent implementation. It contains no Scoop source code and does 
 
 This is an early release. Tested behavior and remaining validation work are described in [Compatibility](docs/compatibility.md) and [Testing](docs/testing.md).
 
-## Install and publish
+## Install
 
-Install through the [rsc Scoop bucket](https://github.com/yhwwwwww/scoop-bucket):
+### Scoop
+
+Install through the [kits bucket](https://github.com/yhwwwwww/kits):
 
 ```powershell
-scoop bucket add rsc https://github.com/yhwwwwww/scoop-bucket
-scoop install rsc/rsc
+scoop bucket add kits https://github.com/yhwwwwww/kits
+scoop install kits/rsc
 ```
 
-Update with `scoop update` followed by `scoop update rsc`. Alternatively, download `rsc.exe` from [Releases](https://github.com/yhwwwwww/rsc/releases) and add its directory to user PATH. A clean Windows machine still needs Git for bucket operations; Scoop itself and Rust are not runtime requirements.
+### Portable
 
-Maintainers publish from **Actions → Release → Run workflow → main**. The workflow builds Windows x64, publishes the version in `Cargo.toml`, and updates the separate bucket. Bump `Cargo.toml` and `Cargo.lock` before publishing a new version. See [Building and development](docs/development.md#github-actions-release) for configuration and recovery.
+Download `rsc.exe` from [Releases](https://github.com/yhwwwwww/rsc/releases) and add its directory to user PATH. A clean Windows machine still needs Git for bucket operations; Scoop itself and Rust are not runtime requirements.
+
+## Update
+
+For an installation managed by Scoop:
+
+```powershell
+scoop update
+scoop update rsc
+```
+
+For a portable installation, download the new release and replace `rsc.exe` while it is not running.
+
+## Publish
+
+Maintainers publish from **Actions → Release → Run workflow → main**. The workflow builds Windows x64, publishes the version in `Cargo.toml`, and updates the rsc manifest in kits. Bump `Cargo.toml` and `Cargo.lock` before publishing a new version. See [Building and development](docs/development.md#github-actions-release) for configuration and recovery.
 
 ## Build
 

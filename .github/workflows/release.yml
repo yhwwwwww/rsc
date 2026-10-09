@@ -102,9 +102,9 @@ jobs:
       - name: Check out Scoop bucket
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          repository: yhwwwwww/scoop-bucket
+          repository: yhwwwwww/kits
           ref: main
-          path: scoop-bucket
+          path: kits
           ssh-key: ${{ secrets.SCOOP_BUCKET_DEPLOY_KEY }}
       - name: Commit matching manifest to bucket
         env:
@@ -115,7 +115,7 @@ jobs:
           cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
           ## Install with Scoop
           ```powershell
-          scoop bucket add rsc https://github.com/yhwwwwww/scoop-bucket
-          scoop install rsc/rsc
+          scoop bucket add kits https://github.com/yhwwwwww/kits
+          scoop install kits/rsc
           ```
           EOF

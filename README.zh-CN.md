@@ -21,18 +21,35 @@ rsc 是独立实现，项目不包含 Scoop 源码，也不会展开或运行 Sc
 
 项目仍处于早期阶段。已验证的行为与待验收项见[兼容状态](docs/compatibility.zh-CN.md)和[测试](docs/testing.zh-CN.md)。
 
-## 安装与发布
+## 安装
 
-通过 [rsc Scoop bucket](https://github.com/yhwwwwww/scoop-bucket) 安装：
+### Scoop
+
+通过 [kits bucket](https://github.com/yhwwwwww/kits) 安装：
 
 ```powershell
-scoop bucket add rsc https://github.com/yhwwwwww/scoop-bucket
-scoop install rsc/rsc
+scoop bucket add kits https://github.com/yhwwwwww/kits
+scoop install kits/rsc
 ```
 
-升级时先执行 `scoop update`，再执行 `scoop update rsc`。也可以从 [Releases](https://github.com/yhwwwwww/rsc/releases) 下载 `rsc.exe`，将其目录加入用户 PATH。干净 Windows 环境的 bucket 操作仍需要 Git；运行时无需预装 Scoop 或 Rust。
+### 便携版
 
-维护者在 **Actions → Release → Run workflow → main** 发布。工作流编译 Windows x64，发布 `Cargo.toml` 中的版本，并更新独立 bucket。发布新版本前修改 `Cargo.toml` 和 `Cargo.lock`。配置与故障恢复见[构建与开发](docs/development.zh-CN.md#github-actions-发布)。
+从 [Releases](https://github.com/yhwwwwww/rsc/releases) 下载 `rsc.exe`，将其目录加入用户 PATH。干净 Windows 环境的 bucket 操作仍需要 Git；运行时无需预装 Scoop 或 Rust。
+
+## 升级
+
+通过 Scoop 管理的安装：
+
+```powershell
+scoop update
+scoop update rsc
+```
+
+便携安装时，下载新版本，在程序未运行时替换 `rsc.exe`。
+
+## 发布
+
+维护者在 **Actions → Release → Run workflow → main** 发布。工作流编译 Windows x64，发布 `Cargo.toml` 中的版本，并更新 kits 中的 rsc 清单。发布新版本前修改 `Cargo.toml` 和 `Cargo.lock`。配置与故障恢复见[构建与开发](docs/development.zh-CN.md#github-actions-发布)。
 
 ## 构建
 
