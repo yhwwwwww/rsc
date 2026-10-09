@@ -197,7 +197,8 @@ def publish(folder):
         raise RuntimeError(f"Refusing to replace published assets for {tag}.")
     if existing and existing["target_commitish"] != info["source_commit"]:
         raise RuntimeError("Draft release belongs to a different source commit.")
-    tagged = api(f"repos/{REPOSITORY}/commits/{tag}", missing_ok=True)
+    tag_ref = api(f"repos/{REPOSITORY}/git/ref/tags/{tag}", missing_ok=True)
+    tagged = api(f"repos/{REPOSITORY}/commits/{tag}") if tag_ref else None
     if tagged and tagged["sha"] != info["source_commit"]:
         raise RuntimeError(f"{tag} already points to a different source commit.")
     if not existing:
