@@ -57,6 +57,7 @@ rsc 使用 Scoop 的配置和目录结构，能发现本机已有的 Scoop 安�
 - [开发计划](docs/plan.zh-CN.md)
 - [架构](docs/architecture.zh-CN.md)
 - [命令与配置](docs/cli.zh-CN.md)
+- [命令选项核对](docs/cli-options.zh-CN.md)
 - [兼容状态](docs/compatibility.zh-CN.md)
 - [构建与开发](docs/development.zh-CN.md)
 - [测试与结果](docs/testing.zh-CN.md)

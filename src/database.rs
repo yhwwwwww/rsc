@@ -132,8 +132,38 @@ pub fn remove_bucket(config: &Config, name: &str) -> Result<()> {
 }
 
 pub fn search(config: &Config, query: &str) -> Result<serde_json::Value> {
+    search_with_options(config, query, crate::search::Options::default())
+}
+pub fn search_with_options(
+    config: &Config,
+    query: &str,
+    options: crate::search::Options,
+) -> Result<serde_json::Value> {
     let db = open(config)?;
-    let mut statement=db.prepare("SELECT name,bucket,version,description,binary,shortcut FROM app WHERE name LIKE ?1 OR binary LIKE ?1 OR shortcut LIKE ?1")?;
+    let suffix = if options.explicit { " ESCAPE '\\'" } else { "" };
+    let mut conditions = vec![format!("name LIKE ?1{suffix}")];
+    if !options.name_only {
+        conditions.extend([
+            format!("binary LIKE ?1{suffix}"),
+            format!("shortcut LIKE ?1{suffix}"),
+        ]);
+    }
+    if options.with_description {
+        conditions.push(format!("description LIKE ?1{suffix}"));
+    }
+    let sql = format!(
+        "SELECT name,bucket,version,description,binary,shortcut FROM app WHERE {}",
+        conditions.join(" OR ")
+    );
+    let mut statement = db.prepare(&sql)?;
+    let query = if options.explicit {
+        query
+            .replace('\\', "\\\\")
+            .replace('%', "\\%")
+            .replace('_', "\\_")
+    } else {
+        query.to_owned()
+    };
     let rows=statement.query_map([format!("%{query}%")],|r|Ok(serde_json::json!({
         "package":r.get::<_,String>(0)?,"bucket":r.get::<_,String>(1)?,"version":r.get::<_,String>(2)?,
         "description":r.get::<_,String>(3)?,"bins":r.get::<_,Option<String>>(4)?,"shortcuts":r.get::<_,Option<String>>(5)?

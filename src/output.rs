@@ -1,4 +1,3 @@
-use console::style;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use rsc_core::download::{Event, Reporter};
 use rsc_core::presentation::{self, Tone, paint};
@@ -39,7 +38,38 @@ impl Output {
         writeln!(out)?;
         Ok(())
     }
+    pub fn search_table(&self, rows: &[rsc_core::search::Row], descriptions: bool) {
+        let mut headers = vec!["Package", "Version", "Bucket", "Installed", "Binaries"];
+        if descriptions {
+            headers.push("Description");
+        }
+        let values = rows
+            .iter()
+            .map(|row| {
+                let mut values = vec![
+                    row.package.clone(),
+                    row.version.clone(),
+                    row.bucket.clone(),
+                    installed_cell(&row.installations, self.color),
+                    row.binaries.clone(),
+                ];
+                if descriptions {
+                    values.push(row.description.clone());
+                }
+                values
+            })
+            .collect();
+        self.table_inner(&headers, values, Some(rows));
+    }
     pub fn table(&self, headers: &[&str], rows: Vec<Vec<String>>) {
+        self.table_inner(headers, rows, None);
+    }
+    fn table_inner(
+        &self,
+        headers: &[&str],
+        rows: Vec<Vec<String>>,
+        search: Option<&[rsc_core::search::Row]>,
+    ) {
         if rows.is_empty() {
             println!("{}", paint("No results.", Tone::Secondary, self.color));
             return;
@@ -69,13 +99,27 @@ impl Output {
                 widths[index] -= 1;
             }
         }
-        let render = |row: &[String], body: bool| -> String {
+        let render = |row: &[String], body: bool, row_index: usize| -> String {
             let attention = row.iter().any(|v| v.contains("outdated"));
             row.iter()
                 .enumerate()
                 .map(|(i, value)| {
                     let clean = console::strip_ansi_codes(value).replace(['\r', '\n', '\t'], " ");
-                    let text = if body {
+                    let text = if body && headers[i] == "Installed" && search.is_some() {
+                        console::truncate_str(
+                            &installed_cell(&search.unwrap()[row_index].installations, self.color),
+                            widths[i],
+                            "…",
+                        )
+                        .into_owned()
+                    } else if body && i == 0 {
+                        console::truncate_str(
+                            &paint(&clean, Tone::Primary, self.color),
+                            widths[i],
+                            "…",
+                        )
+                        .into_owned()
+                    } else if body {
                         clipped_cell(
                             headers[i],
                             &clean,
@@ -99,17 +143,19 @@ impl Output {
         };
         println!(
             "{}",
-            style(render(
-                &headers.iter().map(|s| s.to_string()).collect::<Vec<_>>(),
-                false
-            ))
-            .bold()
-            .cyan()
-            .force_styling(self.color)
+            paint(
+                &render(
+                    &headers.iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+                    false,
+                    0,
+                ),
+                Tone::Heading,
+                self.color
+            )
         );
         let mut stdout = io::BufWriter::new(io::stdout().lock());
-        for row in &rows {
-            let _ = writeln!(stdout, "{}", render(row, true));
+        for (index, row) in rows.iter().enumerate() {
+            let _ = writeln!(stdout, "{}", render(row, true, index));
         }
     }
     pub fn details(&self, fields: Vec<(String, String)>) {
@@ -160,7 +206,7 @@ impl Output {
                 );
                 println!(
                     "{}  {}",
-                    style(padded).cyan().bold().force_styling(self.color),
+                    paint(&padded, Tone::Heading, self.color),
                     cell(&key, &line, self.color, false, self.command)
                 );
             }
@@ -174,8 +220,8 @@ impl Output {
         }
         println!(
             "{}  {}",
-            paint("Bucket updates available", Tone::Warning, self.color),
-            paint(&buckets.join(", "), Tone::Primary, self.color)
+            paint("Bucket updates available", Tone::Heading, self.color),
+            paint(&buckets.join(", "), Tone::Bucket, self.color)
         );
         println!(
             "{}\n",
@@ -192,7 +238,7 @@ impl Output {
         }
         println!(
             "\n{}",
-            paint("Checks needing attention", Tone::Warning, self.color)
+            paint("Checks needing attention", Tone::Heading, self.color)
         );
         for (messages, tone) in [(warnings, Tone::Warning), (errors, Tone::Error)] {
             for message in messages {
@@ -224,6 +270,51 @@ impl Output {
         }
     }
 }
+/// Version state colors belong to the version itself, independently for each scope.
+fn installed_cell(installations: &[rsc_core::search::Installation], color: bool) -> String {
+    installations
+        .iter()
+        .map(|installed| {
+            let tone = match installed.state.as_str() {
+                "current" => Tone::Success,
+                "newer" => Tone::Version,
+                "broken" => Tone::Error,
+                _ => Tone::Warning,
+            };
+            let clean =
+                |text: &str| console::strip_ansi_codes(text).replace(['\r', '\n', '\t'], " ");
+            let mut text = format!(
+                "{} {}",
+                paint(&clean(&installed.version), tone, color),
+                paint(
+                    &format!("({})", clean(&installed.scope)),
+                    Tone::Secondary,
+                    color
+                )
+            );
+            let mut notes = Vec::new();
+            if !color && installed.state != "current" {
+                notes.push(installed.state.as_str());
+            }
+            if installed.held {
+                notes.push("held");
+            }
+            if installed.source_unknown {
+                notes.push("source unknown");
+            }
+            if !notes.is_empty() {
+                text.push_str(&paint(
+                    &format!(" [{}]", notes.join(", ")),
+                    Tone::Secondary,
+                    color,
+                ));
+            }
+            text
+        })
+        .collect::<Vec<_>>()
+        .join(" | ")
+}
+
 /// Determine priority from the complete value before truncating styled text.
 fn clipped_cell(
     header: &str,
@@ -264,12 +355,28 @@ fn cell(header: &str, value: &str, color: bool, attention: bool, command: &str) 
         "value" if serde_json::from_str::<serde_json::Value>(value).is_ok() => {
             return presentation::json(value, color);
         }
-        "bucket" | "source" | "scope" | "arch" | "architecture" | "path" | "repository" => {
-            Tone::Secondary
-        }
+        "bucket" => Tone::Bucket,
+        "source" | "scope" | "arch" | "architecture" | "path" | "repository" => Tone::Secondary,
         "homepage" | "url" => Tone::Primary,
         _ => Tone::Normal,
     };
+    if matches!(key.as_str(), "version" | "installed" | "installed version") {
+        return value
+            .split(" | ")
+            .map(|value| {
+                if let Some((version, suffix)) = value.split_once(" (") {
+                    format!(
+                        "{} {}",
+                        paint(version, tone, color),
+                        paint(&format!("({suffix}"), Tone::Secondary, color)
+                    )
+                } else {
+                    paint(value, tone, color)
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(" | ");
+    }
     paint(value, tone, color)
 }
 
@@ -289,6 +396,33 @@ fn clip(text: &str, width: usize) -> String {
     out.push('…');
     out
 }
+fn progress_style(known_size: bool, width: usize, color: bool) -> ProgressStyle {
+    let template = match (known_size, width) {
+        (true, 0..=59) => {
+            " {spinner:.green} {msg:12!} {wide_bar:.green} {percent:>3}% {bytes_per_sec}"
+        }
+        (true, 60..=99) => {
+            " {spinner:.green} {msg:18!} {wide_bar:.green} {percent:>3}% {bytes_per_sec} ETA {eta_precise}"
+        }
+        (true, _) => {
+            " {spinner:.green} {msg:24!} {wide_bar:.green} {percent:>3}% {bytes}/{total_bytes} {bytes_per_sec} ETA {eta_precise}"
+        }
+        (false, 0..=59) => " {spinner:.green} {msg:12!} {bytes} {bytes_per_sec}",
+        (false, _) => {
+            " {spinner:.green} {msg:24!} {bytes} {bytes_per_sec} elapsed {elapsed_precise}"
+        }
+    };
+    let template = if color {
+        template.to_owned()
+    } else {
+        template.replace(":.green", "")
+    };
+    ProgressStyle::with_template(&template)
+        .expect("valid download progress template")
+        .tick_chars("+-x| ")
+        .progress_chars("█░")
+}
+
 pub struct Progress {
     bars: Mutex<HashMap<usize, ProgressBar>>,
     labels: Mutex<HashMap<usize, String>>,
@@ -374,24 +508,15 @@ impl Progress {
                     Some(n) => ProgressBar::new(n),
                     None => ProgressBar::new_spinner(),
                 });
-                let narrow = console::Term::stderr().size().1 < 90;
-                let template = match (total.is_some(), narrow) {
-                    (true, false) => {
-                        "{spinner:.cyan} {msg:24} [{bar:20.cyan/blue}] {bytes}/{total_bytes} {bytes_per_sec} {eta}"
-                    }
-                    (true, true) => "{spinner:.cyan} {msg} {bytes}/{total_bytes} {bytes_per_sec}",
-                    (false, _) => "{spinner:.cyan} {msg} {bytes} {bytes_per_sec}",
-                };
-                let template = if std::env::var_os("NO_COLOR").is_some() {
-                    template.replace(":.cyan", "").replace(".cyan/blue", "")
-                } else {
-                    template.to_owned()
-                };
-                if let Ok(style) = ProgressStyle::with_template(&template) {
-                    bar.set_style(style.progress_chars("=> "));
-                }
-                bar.set_message(label);
-                bar.enable_steady_tick(Duration::from_millis(100));
+                let width = console::Term::stderr().size().1 as usize;
+                bar.set_style(progress_style(
+                    total.is_some(),
+                    width,
+                    presentation::stderr_color(),
+                ));
+                let label = console::strip_ansi_codes(&label).replace(['\r', '\n', '\t'], " ");
+                bar.set_message(paint(&label, Tone::Primary, presentation::stderr_color()));
+                bar.enable_steady_tick(Duration::from_millis(200));
                 bars.insert(id, bar);
             }
             Event::Progress { id, bytes } => {
@@ -415,10 +540,18 @@ impl Progress {
                     bar.finish_and_clear();
                 }
                 let _ = self.multi.println(format!(
-                    "{} {} ({})",
-                    if cached { "Cached" } else { "Saved" },
-                    path.display(),
-                    size(bytes)
+                    "{}  {}  {}",
+                    paint(&label, Tone::Primary, presentation::stderr_color()),
+                    paint(
+                        if cached { "Cached" } else { "Saved" },
+                        Tone::Success,
+                        presentation::stderr_color()
+                    ),
+                    paint(
+                        &format!("{} ({})", path.display(), size(bytes)),
+                        Tone::Secondary,
+                        presentation::stderr_color()
+                    )
                 ));
             }
             Event::Failed { id } => {
@@ -465,14 +598,66 @@ pub struct CacheEntry {
 mod tests {
     use super::*;
     #[test]
+    fn search_colors_only_installed_version_and_keeps_each_scope_state() {
+        use rsc_core::search::Installation;
+        let make = |scope: &str, state: &str, version: &str, held: bool| Installation {
+            scope: scope.into(),
+            state: state.into(),
+            version: version.into(),
+            held,
+            source_unknown: false,
+        };
+        let installs = [
+            make("global", "current", "2.0", false),
+            make("user", "outdated", "1.9", true),
+        ];
+        let colored = installed_cell(&installs, true);
+        assert_eq!(
+            console::strip_ansi_codes(&colored),
+            "2.0 (global) | 1.9 (user) [held]"
+        );
+        assert!(colored.contains("\x1b[32m2.0") && colored.contains("\x1b[33m1.9"));
+        assert!(!colored.contains("\x1b[32mglobal") && !colored.contains("\x1b[33muser"));
+        assert_eq!(
+            installed_cell(&installs, false),
+            "2.0 (global) | 1.9 (user) [outdated, held]"
+        );
+        for (state, code) in [
+            ("broken", "\x1b[31m"),
+            ("newer", "\x1b[35m"),
+            ("unknown (nightly)", "\x1b[33m"),
+        ] {
+            assert!(installed_cell(&[make("user", state, "1", false)], true).contains(code));
+        }
+    }
+    #[test]
+    fn heading_subject_bucket_and_scoped_versions_have_distinct_styles() {
+        let heading = paint("Package", Tone::Heading, true);
+        let primary = paint("git", Tone::Primary, true);
+        let bucket = cell("Bucket", "main", true, false, "search");
+        assert!(heading.contains("\x1b[38;5;117m"));
+        assert!(primary.contains("\x1b[38;5;13m") && !primary.contains("38;5;117"));
+        assert!(bucket.contains("\x1b[32m") && !bucket.contains("\x1b[2m"));
+        let version = cell("Installed", "2.48.1 (user)", true, false, "info");
+        assert!(version.contains("\x1b[35m2.48.1") && !version.contains("\x1b[35m(user)"));
+        assert_eq!(console::strip_ansi_codes(&version), "2.48.1 (user)");
+        for width in [40, 80, 120] {
+            for known in [false, true] {
+                for color in [false, true] {
+                    let _ = progress_style(known, width, color);
+                }
+            }
+        }
+    }
+    #[test]
     fn table_cells_have_semantic_colors_and_plain_mode() {
         let cases = [
-            ("Package", "jq", "\x1b[36m"),
+            ("Package", "jq", "\x1b[38;5;13m"),
             ("Version", "1.8.1", "\x1b[35m"),
             ("State", "outdated", "\x1b[33m"),
             ("State", "broken", "\x1b[31m"),
             ("State", "installed", "\x1b[32m"),
-            ("Bucket", "main", "\x1b[2m"),
+            ("Bucket", "main", "\x1b[32m"),
             ("Available", "2.0", "\x1b[33m"),
             ("Dependencies", "missing", "\x1b[31m"),
         ];

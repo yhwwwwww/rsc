@@ -2,9 +2,21 @@
 
 [简体中文](performance.zh-CN.md) · [README](../README.md)
 
+## Current search options
+
+The installed release with the option audit and output changes was measured with `hyperfine --warmup 5 --runs 20 --shell none`. Default search includes names and binaries (80 matches); name-only rsc and default Hok each return 76 matches. The executable hash and every sample are preserved in [cli-benchmark.json](cli-benchmark.json).
+
+| Command | Mean |
+| --- | ---: |
+| `rsc search git` | 72.5 ms |
+| `rsc search -N git` | 26.1 ms |
+| `hok search git` | 53.5 ms |
+
+These are warm filesystem measurements on the same machine; default and name-only search cover different fields.
+
 ## Scoop-compatible search and installed entry points
 
-The new search benchmark uses `hyperfine --warmup 5 --runs 20 --shell none` against installed commands on the same machine and the same 5 buckets / 5,189 manifests. Output is redirected, and startup time is included. Raw measurements and binary hashes are in [search-benchmark.json](search-benchmark.json).
+The search benchmark below is a snapshot of the release identified by its recorded hash, before the later installed-version color and search-option changes. It uses `hyperfine --warmup 5 --runs 20 --shell none` against installed commands on the same machine and the same 5 buckets / 5,189 manifests. Output is redirected, and startup time is included. Raw measurements and binary hashes are in [search-benchmark.json](search-benchmark.json).
 
 | Installed command | Mean |
 | --- | ---: |

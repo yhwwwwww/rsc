@@ -34,24 +34,39 @@
 
 ## 搜索结果
 
-`search [query]` 遵循 Scoop 默认的名称和二进制搜索。关闭 SQLite 时，使用忽略大小写的正则表达式，搜索名称及顶层 `bin`，并在 `Binaries` 列展示匹配到的可执行文件名或别名。名称匹配时该列留空，架构下的 `bin` 和描述不会额外增加结果。二进制匹配前也遵循 Scoop 的原始文本预筛选规则。启用 SQLite 后，沿用 Scoop 对名称、二进制及快捷方式的 LIKE 搜索行为。
+`search [query]` 遵循 Scoop 默认的名称和二进制搜索。关闭 SQLite 时，使用忽略大小写的正则表达式，搜索名称及顶层 `bin`，并在 `Binaries` 列展示匹配到的可执行文件名或别名。名称匹配时该列留空，默认情况下架构下的 `bin` 和描述不会额外增加结果。默认二进制匹配前也遵循 Scoop 的原始文本预筛选规则。启用 SQLite 后，沿用 Scoop 对名称、二进制及快捷方式的 LIKE 搜索行为。
 
-`Installed` 显示同一 bucket 的已安装版本及用户/全局范围。`State` 区分 `current`（绿色，版本一致）、`outdated`（黄色，版本落后）、`newer`（已安装版本更高）和 `broken`（红色，安装损坏）；hold 状态会保留。其他 bucket 中安装的同名软件不会错误标记在当前结果上；来源信息缺失会明确显示。无固定版本的 nightly 清单显示 `unknown (nightly)`，不声称已是最新版。
+`Installed` 将同一 bucket 的已安装版本与范围整合为 `2.48.1 (user)` 或 `2.48.1 (global)`，直接给版本号着色：绿色表示版本一致，黄色表示版本落后或无法判断，紫色表示已安装版本更高，红色表示安装损坏。不再单列状态。每个范围的版本独立着色，hold 和缺少来源信息的提示保留在版本旁。重定向和 `NO_COLOR` 模式用简短文字标注非当前状态。其他 bucket 中安装的同名软件不会错误标记在当前结果上；无固定版本的 nightly 清单保留为无法判断。
+
+搜索选项都有明确作用：
+
+| 选项 | 行为 | 示例 |
+| --- | --- | --- |
+| `-e` / `--explicit` | 忽略大小写的字面量子串匹配，正则字符不再具有特殊意义 | `rsc search -e 'c++'` |
+| `-N` / `--name-only` | 只搜软件名称，跳过读取名称不匹配的清单，不包含二进制/别名匹配 | `rsc search -N git` |
+| `-D` / `--with-description` | 同时搜索解码后的描述文本，并展示 `Description` 列 | `rsc search -D editor` |
+
+`-e` 可与任一范围选项组合，`-N` 与 `-D` 互斥。使用这些选项时只搜本地 bucket；默认模式在本地无结果时仍沿用 Scoop 的已知 bucket 回退。SQLite 保留 LIKE 匹配，`-e` 同时转义 LIKE 通配符。搜索拒绝 `-g` 和 `--arch`：安装标记同时覆盖用户及全局范围，Scoop 默认的二进制搜索使用顶层条目。`rsc search --help` 中有完整示例。
 
 版本与本地 bucket 清单比较，搜索不会联网拉取更新。保留 bucket 优先级及重复名称结果，没有新增持久搜索缓存。
 
 ## 选项
 
-- `-g` / `--global`：全局范围；写操作需要管理员权限。
-- `--arch 64bit|32bit|arm64`：架构；install/download/depends 也支持 `-a`。
+选项放在其作用的命令之后。[命令选项核对](cli-options.zh-CN.md)逐项列出所有命令及保留选项的实际作用。
+
+- `-g` / `--global` 只用于 install、uninstall、update、cleanup、hold、unhold、list、prefix、which 和 shim。全局写操作需要管理员权限。
+- `-a` / `--arch 64bit|32bit|arm64` 只用于 install、download 和 depends。update 保留已有安装的架构。
 - install/update：`-i` / `--independent`、`-k` / `--no-cache`、`-s` / `--skip-hash-check`。
 - download：`-f` / `--force`、`-s` / `--skip-hash-check`。
-- update：`-f` / `--force`、`-a` / `--all`；reset/cleanup 也支持 `--all`。
-- uninstall：`-p` / `--purge`；cleanup：`-k` / `--cache`。
-- 接受 `--no-update-scoop` 以兼容命令；管理器自身升级不在范围内。
-- VirusTotal 接受 `--all`、`--scan`、`--no-depends`、`--no-update-scoop` 和 `--passthru`。
+- update：`-f` / `--force`、`-a` / `--all`。软件操作选项必须同时提供软件名称或 `--all`。
+- reset/cleanup：`-a` / `--all`。uninstall：`-p` / `--purge`。cleanup：`-k` / `--cache`。
+- `alias list -v` / `--verbose` 展示描述，其他 alias 操作没有选项。
+- `cache rm -a` / `--all` 删除全部下载缓存，`cache show` 没有选项。
+- VirusTotal：`-a` / `--all`、`-s` / `--scan`、`-n` / `--no-depends`。
+- 移除原来忽略的 `--no-update-scoop`、update 的 `--quiet`、VirusTotal 的 `--passthru`。未知选项在执行操作前报错；自定义别名和 shim 目标的转发参数由用户定义。
+- 明确的软件名称不能与 `--all` 同时使用。
 
-完整参数语法可运行 `rsc help command`。
+运行 `rsc help command` 或 `rsc command --help` 可查看对应语法及选项说明。
 
 ## 配置
 
@@ -72,7 +87,11 @@ Scoop 共用配置保存在发现的 Scoop `config.json`，下载调优保存在
 
 ## 输出与退出码
 
-表格遵循终端宽度，考虑 Unicode 显示宽度，使用语义颜色：名称为青色，版本为紫色，正常状态为绿色，待处理状态为黄色，错误为红色，路径与来源等次要信息弱化。多个状态分别着色。`cat` 内置 JSON 键、字符串、数字、字面量及标点高亮，设置 `cat_style` 后仍可使用可选的 bat 展示器。重定向和 `NO_COLOR` 关闭动态及彩色格式。诊断与进度输出到 stderr，路径、清单和 Scoopfile 可从 stdout 重定向。
+表格遵循终端宽度，并考虑 Unicode 显示宽度。横向表头、纵向详情字段及帮助标题专用淡蓝色，第一列主体使用粗体亮紫红色，bucket 内容使用绿色。search、list、info、depends 及操作汇总中的已安装版本和范围统一显示为 `2.48.1 (user)`；status 保留独立的版本和范围列用于比较。版本状态只给版本号着色，范围后缀弱化。
+
+下载进度使用铺满可用宽度的块状条，配有旋转符、百分比、速度及准确剩余时间，并适配窄终端。未知大小时显示已用时间，不虚构百分比或剩余时间。创建清单时的下载也使用同一显示，完成后给出简短的已保存/缓存汇总。
+
+`cat` 内置 JSON 键、字符串、数字、字面量及标点高亮，设置 `cat_style` 后仍可使用可选的 bat 展示器。重定向及 `NO_COLOR` 关闭颜色，重定向时进度使用纯文本事件。诊断与进度写入 stderr，路径、清单和 Scoopfile 可从 stdout 重定向。
 
 `status` 整份状态报告使用 stdout：正常的 bucket 更新提示汇总在软件表格前，检查警告集中在表格后的 `Checks needing attention` 区域。致命错误仍写入 stderr，避免终端合并输出通道时把警告插入表格。
 

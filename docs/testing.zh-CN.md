@@ -10,7 +10,7 @@
 
 ## 最新结果
 
-原生发布版通过 **33 项 Rust 测试和 34 组 Windows 集成测试**，没有失败。另有七项只读查询与本机 Scoop 对照，结果行、顺序及匹配的二进制名称全部一致。测试程序校验值保留在 [test-results.json](test-results.json)。
+原生发布版通过 **39 项 Rust 测试和 34 组 Windows 集成测试**，没有失败。另有七项只读查询与本机 Scoop 对照，结果行、顺序及匹配的二进制名称全部一致。测试程序校验值保留在 [test-results.json](test-results.json)。
 
 搜索夹具覆盖可执行文件/别名优先级、顶层与架构下的 bin、转义 JSON 键、清单修改/删除、bucket 来源、用户/全局范围、hold、版本一致/落后/更高，以及 nightly 版本未知状态。管理器直接入口还检查硬链接身份、自身 reset 和目标变化后的转发。
 
@@ -50,5 +50,7 @@ python tests/search_scoop.py
 [开发](development.zh-CN.md) · [架构](architecture.zh-CN.md)
 
 ## 查询与颜色回归
+
+当前套件还覆盖完整的范围/架构选项矩阵、无用选项拒绝、实际生效的 alias 详细模式、字面量/描述/仅名称搜索（含 SQLite 通配符转义）、版本及范围格式、标题/主体/bucket 颜色区分，以及窄终端和未知大小的进度模板。
 
 测试还覆盖表格语义颜色、JSON 分词颜色、Unicode 与转义保留、重定向 JSON、NO_COLOR、保序并行查询及清单即时修改。已在启用颜色的 Windows 终端中核对输出。性能样本及查询结果一致性核对见[性能](performance.zh-CN.md)。

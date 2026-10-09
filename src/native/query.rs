@@ -558,7 +558,12 @@ pub fn invoke(c: &Config, action: &str, d: &Value) -> Result<Value> {
             let installed = package::list(&c.layout, false)?
                 .into_iter()
                 .filter(|p| p.name.as_str() == resolved["name"].as_str().unwrap_or(""))
-                .map(|p| format!("{} ({})", p.version.unwrap_or("?".into()), p.scope))
+                .map(|p| {
+                    crate::presentation::version_scope(
+                        p.version.as_deref().unwrap_or("?"),
+                        &p.scope,
+                    )
+                })
                 .collect::<Vec<_>>();
             row["Installed"] = json!(installed);
             if d["verbose"].as_bool() == Some(true) {

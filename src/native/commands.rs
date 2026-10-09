@@ -19,12 +19,12 @@ fn strings(d: &Value) -> Vec<String> {
 }
 pub fn invoke(c: &Config, d: &Value) -> Result<Value> {
     let command = d["command"].as_str().unwrap_or("");
-    let mut a = strings(d);
+    let a = strings(d);
     match command {
         "alias" => alias(c, &a),
         "shim" => shim(c, &a),
         "checkup" => checkup(c, &a),
-        "create" => create(c, &a),
+        "create" => create(c, &a, std::sync::Arc::new(|_| {})),
         "virustotal" => virustotal(c, &a),
         name => {
             util::valid_name(name)?;
@@ -39,9 +39,6 @@ pub fn invoke(c: &Config, d: &Value) -> Result<Value> {
                 .context("Unknown command")?;
             util::valid_name(file)?;
             let body = util::read_text(&c.layout.shims(false).join(format!("{file}.ps1")))?;
-            if a.last().is_some_and(|s| s == "--global") {
-                a.pop();
-            }
             scripts::run(c, &body, &Value::Null, &a)?;
             Ok(Value::Null)
         }
@@ -110,7 +107,14 @@ fn alias(c: &Config, a: &[String]) -> Result<Value> {
                     .filter(|s| !s.starts_with("# Summary: "))
                     .collect::<Vec<_>>()
                     .join("\n");
-                rows.push(json!({"Name":name,"Command":command,"Summary":summary}));
+                let mut row = json!({"Name":name,"Command":command});
+                if a.iter()
+                    .skip(1)
+                    .any(|arg| arg == "-v" || arg == "--verbose")
+                {
+                    row["Summary"] = json!(summary);
+                }
+                rows.push(row);
             }
             rows.sort_by(|a, b| a["Name"].as_str().cmp(&b["Name"].as_str()));
             Ok(json!(rows))
@@ -261,7 +265,10 @@ fn shim(c: &Config, args: &[String]) -> Result<Value> {
         _ => bail!("Unknown shim action: {sub}"),
     }
 }
-fn checkup(c: &Config, _a: &[String]) -> Result<Value> {
+fn checkup(c: &Config, a: &[String]) -> Result<Value> {
+    if !a.is_empty() {
+        bail!("checkup does not accept arguments or options");
+    }
     let mut rows = Vec::new();
     for (name, path) in [
         ("User root", &c.layout.root),
@@ -290,7 +297,14 @@ fn checkup(c: &Config, _a: &[String]) -> Result<Value> {
     Ok(json!(rows))
 }
 fn prompt(label: &str, default: &str) -> Result<String> {
-    eprint!("{label} [{default}]: ");
+    eprint!(
+        "{} [{default}]: ",
+        crate::presentation::paint(
+            label,
+            crate::presentation::Tone::Heading,
+            crate::presentation::stderr_color()
+        )
+    );
     io::stderr().flush()?;
     let mut answer = String::new();
     io::stdin().read_line(&mut answer)?;
@@ -300,7 +314,7 @@ fn prompt(label: &str, default: &str) -> Result<String> {
         answer.trim().into()
     })
 }
-fn create(c: &Config, a: &[String]) -> Result<Value> {
+pub fn create(c: &Config, a: &[String], progress: crate::download::Reporter) -> Result<Value> {
     let url = if let Some(u) = a.first() {
         u.clone()
     } else {
@@ -338,7 +352,7 @@ fn create(c: &Config, a: &[String]) -> Result<Value> {
                         },
                         headers: Default::default(),
                     },
-                    std::sync::Arc::new(|_| {}),
+                    progress,
                 )
                 .await?;
             use sha2::Digest;
@@ -350,10 +364,30 @@ fn create(c: &Config, a: &[String]) -> Result<Value> {
     let value = json!({"version":version,"description":description,"homepage":homepage,"license":license,"url":url,"hash":downloaded});
     let output = a.get(1).cloned().unwrap_or_else(|| format!("{name}.json"));
     util::write_json(Path::new(&output), &value)?;
-    println!("Created {output}");
+    println!(
+        "{} {}",
+        crate::presentation::paint(
+            "Created",
+            crate::presentation::Tone::Success,
+            crate::presentation::stdout_color()
+        ),
+        crate::presentation::paint(
+            &output,
+            crate::presentation::Tone::Primary,
+            crate::presentation::stdout_color()
+        )
+    );
     Ok(Value::Null)
 }
 fn virustotal(c: &Config, a: &[String]) -> Result<Value> {
+    for arg in a.iter().filter(|arg| arg.starts_with('-')) {
+        if !matches!(
+            arg.as_str(),
+            "-a" | "--all" | "-s" | "--scan" | "-n" | "--no-depends"
+        ) {
+            bail!("Unknown virustotal option: {arg}");
+        }
+    }
     let key = c
         .text("virustotal_api_key")?
         .filter(|s| !s.is_empty())

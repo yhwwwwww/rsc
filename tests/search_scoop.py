@@ -31,7 +31,7 @@ def parse_rsc(text):
     i=next(i for i,line in enumerate(lines) if line.startswith("Package "))
     header=lines[i]
     fields=[("package","Package"),("version","Version"),("bucket","Bucket"),
-            ("installed","Installed"),("state","State"),("binaries","Binaries")]
+            ("installed","Installed"),("binaries","Binaries")]
     positions=[header.index(label) for _,label in fields]+[None]
     rows=[]
     for line in lines[i+1:]:

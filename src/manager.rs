@@ -599,7 +599,9 @@ pub fn hold(config: &Config, inputs: &[String], global: bool, held: bool) -> Res
                 object.remove(&key);
             }
             util::write_json(&path, &info)?;
-            Ok(json!({"package":p.name,"result":if held {"held"} else {"unheld"}}))
+            Ok(
+                json!({"package":p.name,"version":p.version,"scope":p.scope,"result":if held {"held"} else {"unheld"}}),
+            )
         })();
         match operation {
             Ok(row) => outcome.rows.push(row),
@@ -830,7 +832,7 @@ pub async fn update(
             if !options.force && !status.is_some_and(|s| s["outdated"].as_bool() == Some(true)) {
                 outcome
                     .rows
-                    .push(json!({"package":old.name,"result":"current"}));
+                    .push(json!({"package":old.name,"version":old.version,"scope":old.scope,"result":"current"}));
                 return Ok(());
             }
             let info = util::read_json(&package::metadata_file(

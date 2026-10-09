@@ -34,24 +34,39 @@ Commands use Scoop's names and direct style.
 
 ## Search results
 
-`search [query]` follows Scoop's default name and binary search. Without SQLite, it uses a case-insensitive regular expression, searches names and top-level `bin` entries, and displays the matched executable filenames or aliases in `Binaries`. A name match leaves that column blank. Architecture-specific `bin` entries and descriptions do not add matches. Scoop's raw-content prefilter also applies before binary matching. With SQLite enabled, Scoop's name/binary/shortcut LIKE behavior remains in use.
+`search [query]` follows Scoop's default name and binary search. Without SQLite, it uses a case-insensitive regular expression, searches names and top-level `bin` entries, and displays matched executable filenames or aliases in `Binaries`. A name match leaves that column blank. Architecture-specific `bin` entries and descriptions do not add matches by default. Scoop's raw-content prefilter applies before default binary matching. With SQLite enabled, Scoop's name/binary/shortcut LIKE behavior remains in use.
 
-`Installed` shows the installed version and user/global scope for the same bucket. `State` distinguishes `current` (green), `outdated` (yellow), `newer` and `broken` (red); held packages retain their hold indication. An installation from a different bucket does not mark a same-name result as installed. Missing source metadata is indicated explicitly. Unversioned nightly manifests show `unknown (nightly)` rather than claiming a latest version.
+`Installed` shows the version and scope as `2.48.1 (user)` or `2.48.1 (global)` for the same bucket. The version itself is green when current, yellow when outdated or unknown, magenta when newer than the manifest, and red when broken. There is no separate state column. Each scope is colored independently; hold and missing-source annotations remain next to the version. Redirected output and `NO_COLOR` use short annotations for non-current states. An installation from a different bucket does not mark a same-name result as installed. Unversioned nightly manifests remain unknown.
 
-Versions are compared with the local bucket manifests; search does not fetch updates. Bucket priority and duplicate names are retained. No persistent search cache is added.
+Search options have specific effects:
+
+| Option | Behavior | Example |
+| --- | --- | --- |
+| `-e` / `--explicit` | Case-insensitive literal substring matching; regex characters lose their special meaning | `rsc search -e 'c++'` |
+| `-N` / `--name-only` | Search package names only and skip reading unmatched manifests; excludes binary/alias matches | `rsc search -N git` |
+| `-D` / `--with-description` | Include decoded description text and show a `Description` column | `rsc search -D editor` |
+
+`-e` combines with either field option; `-N` and `-D` conflict. These optional modes search local buckets; the default mode keeps Scoop's known-bucket fallback when no local result exists. SQLite retains LIKE matching, while `-e` also escapes LIKE wildcards. Search rejects `-g` and `--arch`: installed markers cover both scopes, and Scoop's default binary search uses top-level entries. See `rsc search --help` for examples.
+
+Versions are compared with local bucket manifests; search does not fetch updates. Bucket priority and duplicate names are retained. No persistent search cache is added.
 
 ## Options
 
-- `-g` / `--global`: global scope; writes require administrator rights.
-- `--arch 64bit|32bit|arm64`: architecture; install/download/depends also accept `-a`.
+Options follow the command they affect. The [command option audit](cli-options.md) lists every command and the implementation behind each retained option.
+
+- `-g` / `--global` is available only for install, uninstall, update, cleanup, hold, unhold, list, prefix, which and shim. Global writes require administrator rights.
+- `-a` / `--arch 64bit|32bit|arm64` is available only for install, download and depends. Update preserves the installed architecture.
 - Install/update: `-i` / `--independent`, `-k` / `--no-cache`, `-s` / `--skip-hash-check`.
 - Download: `-f` / `--force`, `-s` / `--skip-hash-check`.
-- Update: `-f` / `--force`, `-a` / `--all`; reset/cleanup also accept `--all`.
-- Uninstall: `-p` / `--purge`. Cleanup: `-k` / `--cache`.
-- `--no-update-scoop` is accepted for compatibility. Manager self-update is excluded.
-- VirusTotal: `--all`, `--scan`, `--no-depends`, `--no-update-scoop` and `--passthru` are accepted.
+- Update: `-f` / `--force`, `-a` / `--all`. Package options require package names or `--all`.
+- Reset/cleanup: `-a` / `--all`. Uninstall: `-p` / `--purge`. Cleanup: `-k` / `--cache`.
+- `alias list -v` / `--verbose` includes descriptions; other alias actions have no flags.
+- `cache rm -a` / `--all` removes all cached downloads; `cache show` has no flags.
+- VirusTotal: `-a` / `--all`, `-s` / `--scan` and `-n` / `--no-depends`.
+- Ignored `--no-update-scoop`, update `--quiet` and VirusTotal `--passthru` were removed. Unknown options now fail before work begins. Arguments forwarded to custom aliases or shim targets remain user-controlled.
+- Explicit package targets cannot be combined with `--all`.
 
-Run `rsc help command` for the complete argument syntax.
+Run `rsc help command`, or `rsc command --help`, for the applicable syntax and option descriptions.
 
 ## Configuration
 
@@ -72,7 +87,11 @@ Plain queries use case-insensitive regular expressions; SQLite search uses LIKE.
 
 ## Output and exit status
 
-Tables use terminal width, Unicode-aware display widths and semantic color. Names are cyan, versions magenta, healthy states green, attention states yellow, failures red, and secondary paths/sources dim. Mixed states keep their own colors. `cat` highlights JSON keys, strings, numbers, literals and punctuation internally; setting `cat_style` retains the optional bat viewer. Redirected output and `NO_COLOR` disable dynamic/color formatting. Diagnostics and download progress go to stderr; paths, manifests and Scoopfiles are suitable for stdout redirection.
+Tables respect terminal width and Unicode display widths. Horizontal table headers, vertical detail labels and help headings use light blue exclusively for titles. The first table column uses bold bright magenta for the subject; bucket values use green. Installed versions and scopes are combined as `2.48.1 (user)` in search, list, info, depends and operation summaries. Status retains separate version and scope columns for comparison. Version state colors stay on the version itself; scope suffixes are dim.
+
+Download progress uses a full-width block bar with a spinner, percentage, transfer rate and precise ETA, adapting to narrow terminals. Unknown sizes use elapsed time instead of a fabricated percentage or ETA. Downloads from manifest creation use the same display. Completed transfers show a concise saved/cached summary.
+
+`cat` highlights JSON keys, strings, numbers, literals and punctuation internally; setting `cat_style` retains the optional bat viewer. Redirected output and `NO_COLOR` disable colors; redirected progress uses plain event lines. Diagnostics and download progress go to stderr; paths, manifests and Scoopfiles remain suitable for stdout redirection.
 
 `status` keeps its report on stdout: expected bucket updates are summarized before the package table, and check warnings are grouped afterward under `Checks needing attention`. Fatal errors still use stderr. This preserves report order even when a shell merges streams.
 

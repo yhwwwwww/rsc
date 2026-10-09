@@ -57,6 +57,7 @@ The intended differences are the built-in multithreaded downloader and presentat
 - [Development plan](docs/plan.md)
 - [Architecture](docs/architecture.md)
 - [Commands and configuration](docs/cli.md)
+- [Command option audit](docs/cli-options.md)
 - [Compatibility](docs/compatibility.md)
 - [Building and development](docs/development.md)
 - [Tests and results](docs/testing.md)

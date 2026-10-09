@@ -1,12 +1,12 @@
 {
   "schema": 1,
-  "date": "2026-10-09T21:52:40.393670+08:00",
+  "date": "2026-10-09T22:48:25.477881+08:00",
   "version": "0.1.0",
   "profile": "release",
   "target": "x86_64-pc-windows-gnu",
   "rustc": "1.99.0 (b940084d7 2026-09-28)",
-  "bytes": 9734144,
-  "sha256": "bcf57b204e3e1456162398cc08aed4dabfcc9c1d5d1d5f07ad77bcbac71cd610",
+  "bytes": 9818624,
+  "sha256": "26954e19c289b05d86c2f1370b0050f55566402d76011a07fa95df6fa9e06925",
   "artifact": "dist/rsc.exe",
   "core_library": "statically linked rlib",
   "sqlite": "bundled",
@@ -32,6 +32,7 @@
   "runtime_manager_script_expansion": false,
   "tests": "test-results.json",
   "query_benchmark": "query-benchmark.json",
-  "tests_binary_sha256": "bcf57b204e3e1456162398cc08aed4dabfcc9c1d5d1d5f07ad77bcbac71cd610",
-  "search_benchmark": "search-benchmark.json"
+  "tests_binary_sha256": "26954e19c289b05d86c2f1370b0050f55566402d76011a07fa95df6fa9e06925",
+  "search_benchmark": "search-benchmark.json",
+  "cli_benchmark": "cli-benchmark.json"
 }

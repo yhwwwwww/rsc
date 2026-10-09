@@ -1,6 +1,6 @@
 use crate::output::{Output, Progress};
 use anyhow::{Context, Result, bail};
-use clap::Subcommand;
+use clap::{ArgGroup, Subcommand};
 use rsc_core::{
     config::Config,
     download::{self, Downloader, Task},
@@ -17,57 +17,99 @@ pub enum Command {
     Install {
         #[arg(required=true,num_args=1..)]
         packages: Vec<String>,
-        #[arg(short = 'i', long)]
+        #[arg(short = 'i', long, help = "Install without resolving dependencies")]
         independent: bool,
-        #[arg(short = 'k', long)]
+        #[arg(
+            short = 'k',
+            long,
+            help = "Use temporary downloads without reusing or storing cache files"
+        )]
         no_cache: bool,
-        #[arg(short = 's', long)]
+        #[arg(short = 's', long, help = "Skip manifest hash verification")]
         skip_hash_check: bool,
-        #[arg(short = 'u', long)]
-        no_update_scoop: bool,
-        #[arg(short = 'a')]
-        architecture: Option<String>,
     },
     /// Uninstall packages; preserve persistent data unless purge is requested
     Uninstall {
         #[arg(required=true,num_args=1..)]
         packages: Vec<String>,
-        #[arg(short = 'p', long)]
+        #[arg(short = 'p', long, help = "Also remove persistent package data")]
         purge: bool,
     },
     /// Update buckets, or update selected installed packages
+    #[command(group(ArgGroup::new("package_selection").args(["packages", "all"])))]
     Update {
         packages: Vec<String>,
-        #[arg(short = 'f', long)]
+        #[arg(
+            short = 'f',
+            long,
+            requires = "package_selection",
+            help = "Reinstall selected packages even when their versions are current"
+        )]
         force: bool,
-        #[arg(short = 'i', long)]
+        #[arg(
+            short = 'i',
+            long,
+            requires = "package_selection",
+            help = "Update without installing missing dependencies"
+        )]
         independent: bool,
-        #[arg(short = 'k', long)]
+        #[arg(
+            short = 'k',
+            long,
+            requires = "package_selection",
+            help = "Use temporary downloads without reusing or storing cache files"
+        )]
         no_cache: bool,
-        #[arg(short = 's', long)]
+        #[arg(
+            short = 's',
+            long,
+            requires = "package_selection",
+            help = "Skip manifest hash verification"
+        )]
         skip_hash_check: bool,
-        #[arg(short = 'a', long)]
+        #[arg(
+            short = 'a',
+            long,
+            conflicts_with = "packages",
+            help = "Update all user packages; include global packages with -g"
+        )]
         all: bool,
-        #[arg(short = 'q', long)]
-        quiet: bool,
     },
     /// Display package and bucket update status
     Status {
-        #[arg(short = 'l', long)]
+        #[arg(
+            short = 'l',
+            long,
+            help = "Skip fetching remote bucket update information"
+        )]
         local: bool,
     },
     /// Rebuild commands, links and environment for an installed version
     Reset {
         packages: Vec<String>,
-        #[arg(short = 'a', long)]
+        #[arg(
+            short = 'a',
+            long,
+            conflicts_with = "packages",
+            help = "Reset all installed user and global packages"
+        )]
         all: bool,
     },
     /// Remove old versions; optionally remove their download cache
     Cleanup {
         packages: Vec<String>,
-        #[arg(short = 'a', long)]
+        #[arg(
+            short = 'a',
+            long,
+            conflicts_with = "packages",
+            help = "Clean all user packages; also global packages with -g"
+        )]
         all: bool,
-        #[arg(short = 'k', long)]
+        #[arg(
+            short = 'k',
+            long,
+            help = "Also remove download cache for deleted versions"
+        )]
         cache: bool,
     },
     /// Prevent updates of installed packages
@@ -82,7 +124,11 @@ pub enum Command {
     },
     /// Write a Scoop-compatible Scoopfile to standard output
     Export {
-        #[arg(short = 'c', long)]
+        #[arg(
+            short = 'c',
+            long,
+            help = "Include Scoop configuration in the exported Scoopfile"
+        )]
         config: bool,
     },
     /// Import a Scoopfile from a file or URL
@@ -91,28 +137,40 @@ pub enum Command {
     Home { package: String },
     /// Manage Scoop-compatible custom command aliases
     Alias {
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
-        args: Vec<String>,
+        #[command(subcommand)]
+        action: AliasCommand,
     },
     /// Diagnose common Scoop installation problems
-    Checkup {
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
-        args: Vec<String>,
-    },
-    /// Create a manifest using Scoop's interactive workflow
+    Checkup,
+    /// Download, hash and interactively create a package manifest
     Create {
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
-        args: Vec<String>,
+        url: Option<String>,
+        output: Option<String>,
     },
     /// Add, remove, inspect and select shim targets
     Shim {
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
-        args: Vec<String>,
+        #[command(subcommand)]
+        action: ShimCommand,
     },
-    /// Query VirusTotal with Scoop's existing command semantics
+    /// Query VirusTotal reports for packages and their dependencies
     Virustotal {
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
-        args: Vec<String>,
+        #[arg(required_unless_present = "all", num_args = 1..)]
+        packages: Vec<String>,
+        #[arg(
+            short = 'a',
+            long,
+            conflicts_with = "packages",
+            help = "Check all installed packages"
+        )]
+        all: bool,
+        #[arg(
+            short = 's',
+            long,
+            help = "Submit a URL for analysis when no report exists"
+        )]
+        scan: bool,
+        #[arg(short = 'n', long, help = "Skip dependency reports")]
+        no_depends: bool,
     },
     #[command(name = "_fetch", hide = true)]
     Fetch { request: PathBuf },
@@ -120,6 +178,96 @@ pub enum Command {
     Hook { request: PathBuf },
     #[command(skip)]
     Custom(Vec<String>),
+}
+#[derive(Subcommand)]
+pub enum AliasCommand {
+    /// Add an alias with an optional one-line description
+    Add {
+        name: String,
+        command: String,
+        description: Option<String>,
+    },
+    /// Remove an alias
+    Rm { name: String },
+    /// List alias names and commands
+    List {
+        #[arg(short = 'v', long, help = "Include alias descriptions")]
+        verbose: bool,
+    },
+}
+impl AliasCommand {
+    fn args(self) -> Vec<String> {
+        match self {
+            Self::Add {
+                name,
+                command,
+                description,
+            } => {
+                let mut args = vec!["add".into(), name, command];
+                args.extend(description);
+                args
+            }
+            Self::Rm { name } => vec!["rm".into(), name],
+            Self::List { verbose } => {
+                let mut args = vec!["list".into()];
+                if verbose {
+                    args.push("--verbose".into());
+                }
+                args
+            }
+        }
+    }
+}
+#[derive(Subcommand)]
+pub enum ShimCommand {
+    /// Create a shim; arguments after the target are forwarded to it
+    Add {
+        name: String,
+        target: String,
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+    /// Remove named shims
+    Rm {
+        #[arg(required = true, num_args = 1..)]
+        names: Vec<String>,
+    },
+    /// List shims, optionally filtered by name expressions
+    List { filters: Vec<String> },
+    /// Show one shim's target
+    Info { name: String },
+    /// Activate an alternative target
+    Alter {
+        name: String,
+        alternative: Option<String>,
+    },
+}
+impl ShimCommand {
+    fn args(self) -> Vec<String> {
+        match self {
+            Self::Add { name, target, args } => {
+                let mut result = vec!["add".into(), name, target, "--".into()];
+                result.extend(args);
+                result
+            }
+            Self::Rm { names } => {
+                let mut result = vec!["rm".into()];
+                result.extend(names);
+                result
+            }
+            Self::List { filters } => {
+                let mut result = vec!["list".into()];
+                result.extend(filters);
+                result
+            }
+            Self::Info { name } => vec!["info".into(), name],
+            Self::Alter { name, alternative } => {
+                let mut result = vec!["alter".into(), name];
+                result.extend(alternative);
+                result
+            }
+        }
+    }
 }
 impl Command {
     pub fn name(&self) -> &'static str {
@@ -136,7 +284,7 @@ impl Command {
             Self::Import { .. } => "import",
             Self::Home { .. } => "home",
             Self::Alias { .. } => "alias",
-            Self::Checkup { .. } => "checkup",
+            Self::Checkup => "checkup",
             Self::Create { .. } => "create",
             Self::Shim { .. } => "shim",
             Self::Virustotal { .. } => "virustotal",
@@ -159,24 +307,33 @@ pub fn show(out: &Output, result: Outcome) -> Result<bool> {
     if out.json {
         out.data(&result.rows, &result.warnings, &result.errors)?;
     } else {
-        let row =
-            |v: &Value, key: &str| v.get(key).and_then(Value::as_str).unwrap_or("-").to_owned();
+        let has_version = result.rows.iter().any(|row| row["version"].is_string());
+        let mut headers = vec!["Package / bucket"];
+        if has_version {
+            headers.push("Version");
+        }
+        headers.push("Result");
         out.table(
-            &["Package / bucket", "Version", "Scope", "Result"],
+            &headers,
             result
                 .rows
                 .iter()
-                .map(|v| {
-                    vec![
-                        v.get("package")
-                            .or_else(|| v.get("bucket"))
+                .map(|row| {
+                    let mut values = vec![
+                        row.get("package")
+                            .or_else(|| row.get("bucket"))
                             .and_then(Value::as_str)
                             .unwrap_or("-")
-                            .into(),
-                        row(v, "version"),
-                        row(v, "scope"),
-                        row(v, "result"),
-                    ]
+                            .to_owned(),
+                    ];
+                    if has_version {
+                        values.push(rsc_core::presentation::version_scope(
+                            row["version"].as_str().unwrap_or("-"),
+                            row["scope"].as_str().unwrap_or(""),
+                        ));
+                    }
+                    values.push(row["result"].as_str().unwrap_or("-").to_owned());
+                    values
                 })
                 .collect(),
         );
@@ -201,14 +358,7 @@ pub async fn run(
             independent,
             no_cache,
             skip_hash_check,
-            no_update_scoop: _,
-            architecture,
         } => {
-            let arch = architecture
-                .as_deref()
-                .map(Architecture::parse)
-                .transpose()?
-                .unwrap_or(arch);
             manager::install(
                 config,
                 &packages,
@@ -234,7 +384,6 @@ pub async fn run(
             no_cache,
             skip_hash_check,
             all,
-            quiet: _,
         } => {
             if packages.is_empty() && !all && (global || no_cache) {
                 bail!("--global and --no-cache require a package name");
@@ -397,13 +546,36 @@ pub async fn run(
             }
             return Ok(true);
         }
+        Command::Create { url, output } => {
+            let mut args = Vec::new();
+            args.extend(url);
+            args.extend(output);
+            native::commands::create(config, &args, report)?;
+            return Ok(true);
+        }
         other => {
             let (name, mut args) = match other {
-                Command::Alias { args } => ("alias".to_owned(), args),
-                Command::Checkup { args } => ("checkup".into(), args),
-                Command::Create { args } => ("create".into(), args),
-                Command::Shim { args } => ("shim".into(), args),
-                Command::Virustotal { args } => ("virustotal".into(), args),
+                Command::Alias { action } => ("alias".to_owned(), action.args()),
+                Command::Checkup => ("checkup".into(), Vec::new()),
+                Command::Shim { action } => ("shim".into(), action.args()),
+                Command::Virustotal {
+                    packages,
+                    all,
+                    scan,
+                    no_depends,
+                } => {
+                    let mut args = packages;
+                    if all {
+                        args.push("--all".into());
+                    }
+                    if scan {
+                        args.push("--scan".into());
+                    }
+                    if no_depends {
+                        args.push("--no-depends".into());
+                    }
+                    ("virustotal".into(), args)
+                }
                 Command::Custom(mut args) => {
                     if args.is_empty() {
                         bail!("Command missing");
@@ -418,7 +590,7 @@ pub async fn run(
                 bail!("JSON output is not yet implemented for {name}");
             }
             if global {
-                args.push("--global".into());
+                args.insert(0, "--global".into());
             }
             let value = native::invoke(config, "command", json!({"command":name,"args":args}))?;
             if let Some(rows) = value.as_array().filter(|a| !a.is_empty()) {

@@ -1,7 +1,7 @@
 mod commands;
 mod output;
 use anyhow::{Context, Result, bail};
-use clap::{Parser, Subcommand};
+use clap::{Arg, ArgAction, CommandFactory, FromArgMatches, Parser, Subcommand};
 use output::{CacheEntry, Output, Progress};
 use rsc_core::{
     bucket::{self, Resolved},
@@ -28,14 +28,9 @@ use tokio::{sync::Semaphore, task::JoinSet};
     after_help = "Scoop-compatible package operations. Built-in parallel downloads."
 )]
 struct Cli {
-    #[arg(
-        short = 'g',
-        long,
-        global = true,
-        help = "Use globally installed packages"
-    )]
+    #[arg(skip)]
     global: bool,
-    #[arg(long, global = true, help = "Manifest architecture")]
+    #[arg(skip)]
     arch: Option<String>,
     #[command(subcommand)]
     command: Command,
@@ -45,13 +40,43 @@ enum Command {
     #[command(flatten)]
     Manage(commands::Command),
     /// Search local bucket names and executable aliases
-    Search { query: Option<String> },
+    #[command(
+        long_about = "Search names and top-level executable aliases, using a case-insensitive regex by default (Scoop behavior). Installed version colors: green = current, yellow = outdated/unknown, magenta = newer, red = broken.",
+        after_help = "Examples:\n  rsc search git\n  rsc search '^git$'\n  rsc search -N git\n  rsc search -e 'c++'\n  rsc search -D editor\n\nSearch options apply to local buckets. Omit QUERY to list all packages."
+    )]
+    Search {
+        #[arg(help = "Search expression (case-insensitive regex; literal with -e)")]
+        query: Option<String>,
+        #[arg(
+            short = 'e',
+            long,
+            help = "Match literal text instead of a regular expression"
+        )]
+        explicit: bool,
+        #[arg(
+            short = 'N',
+            long,
+            help = "Search package names only; skip binary and alias matching",
+            conflicts_with = "with_description"
+        )]
+        name_only: bool,
+        #[arg(
+            short = 'D',
+            long,
+            help = "Also search descriptions and show them in the results"
+        )]
+        with_description: bool,
+    },
     /// List installed packages and identify incomplete installations
     List { filter: Option<String> },
     /// Show manifest, dependency and installation details
     Info {
         package: String,
-        #[arg(short = 'v', long)]
+        #[arg(
+            short = 'v',
+            long,
+            help = "Include binaries, architecture, dependencies and notes"
+        )]
         verbose: bool,
     },
     /// Print the original manifest
@@ -72,31 +97,42 @@ enum Command {
         action: Option<BucketCommand>,
     },
     /// List dependencies in installation order
-    Depends {
-        package: String,
-        #[arg(short = 'a')]
-        architecture: Option<String>,
-    },
+    Depends { package: String },
     /// Download package files into the Scoop cache without installing
     Download {
         #[arg(required=true,num_args=1..)]
         packages: Vec<String>,
-        #[arg(short = 'f', long)]
+        #[arg(
+            short = 'f',
+            long,
+            help = "Download again instead of reusing validated cache files"
+        )]
         force: bool,
-        #[arg(short = 's', long)]
+        #[arg(short = 's', long, help = "Skip manifest hash verification")]
         skip_hash_check: bool,
-        #[arg(short = 'u', long)]
-        no_update_scoop: bool,
-        #[arg(short = 'a')]
-        architecture: Option<String>,
     },
-    /// List Scoop cache files
     #[command(external_subcommand)]
     Custom(Vec<String>),
+    /// Inspect or remove cached downloads
     Cache {
-        action: Option<String>,
+        #[command(subcommand)]
+        action: Option<CacheCommand>,
+    },
+}
+#[derive(Subcommand)]
+enum CacheCommand {
+    /// List cached downloads, optionally filtered by package
+    Show { packages: Vec<String> },
+    /// Remove cached downloads
+    Rm {
+        #[arg(required_unless_present = "all", num_args = 1..)]
         packages: Vec<String>,
-        #[arg(short = 'a', long)]
+        #[arg(
+            short = 'a',
+            long,
+            conflicts_with = "packages",
+            help = "Remove all cached downloads"
+        )]
         all: bool,
     },
 }
@@ -132,6 +168,84 @@ impl Command {
         }
     }
 }
+const SCOPE_COMMANDS: &[&str] = &[
+    "install",
+    "uninstall",
+    "update",
+    "cleanup",
+    "hold",
+    "unhold",
+    "list",
+    "prefix",
+    "which",
+    "shim",
+];
+const ARCH_COMMANDS: &[&str] = &["install", "download", "depends"];
+impl Cli {
+    fn configured_command() -> clap::Command {
+        use clap::builder::styling::{Ansi256Color, AnsiColor, Styles};
+        let styles = Styles::styled()
+            .header(Ansi256Color(117).on_default().bold())
+            .usage(Ansi256Color(117).on_default().bold())
+            .literal(AnsiColor::BrightMagenta.on_default().bold())
+            .placeholder(AnsiColor::Magenta.on_default());
+        Self::command()
+            .styles(styles)
+            .mut_subcommands(|mut command| {
+                let name = command.get_name().to_owned();
+                if SCOPE_COMMANDS.contains(&name.as_str()) {
+                    let mut scope = Arg::new("global")
+                        .short('g')
+                        .long("global")
+                        .action(ArgAction::SetTrue)
+                        .global(true)
+                        .help(match name.as_str() {
+                            "shim" => "Use global shims; list only global shims",
+                            "list" => "List global installations only",
+                            "which" => "Search the global shim directory only",
+                            "prefix" => "Select the global installation",
+                            "install" => "Install globally (requires administrator rights)",
+                            "cleanup" => {
+                                "Clean global installations (requires administrator rights)"
+                            }
+                            _ => "Use globally installed packages",
+                        });
+                    if name == "update" {
+                        scope = scope.requires("package_selection");
+                    }
+                    command = command.arg(scope);
+                }
+                if ARCH_COMMANDS.contains(&name.as_str()) {
+                    command = command.arg(
+                        Arg::new("arch")
+                            .short('a')
+                            .long("arch")
+                            .value_name("ARCH")
+                            .help("Choose manifest architecture: 64bit, 32bit or arm64"),
+                    );
+                }
+                command
+            })
+    }
+
+    fn from_configured_matches(matches: &clap::ArgMatches) -> Result<Self, clap::Error> {
+        let mut cli = Self::from_arg_matches(matches)?;
+        if let Some((_, args)) = matches.subcommand() {
+            cli.global = args
+                .try_get_one::<bool>("global")
+                .ok()
+                .flatten()
+                .copied()
+                .unwrap_or(false);
+            cli.arch = args.try_get_one::<String>("arch").ok().flatten().cloned();
+        }
+        Ok(cli)
+    }
+    fn parse_configured() -> Self {
+        let matches = Self::configured_command().get_matches();
+        Self::from_configured_matches(&matches).unwrap_or_else(|error| error.exit())
+    }
+}
 fn main() -> ExitCode {
     match rsc_core::shim::dispatch() {
         Ok(Some(code)) => std::process::exit(code),
@@ -141,7 +255,7 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     }
-    let cli = Cli::parse();
+    let cli = Cli::parse_configured();
     let out = Output::new(false, cli.command.name());
     let execute = || -> Result<bool> {
         // Queries and shim dispatch do not need an eagerly created worker pool.
@@ -177,7 +291,15 @@ async fn resolve(config: &Config, input: &str) -> Result<Resolved> {
 }
 async fn run(cli: Cli, out: &Output) -> Result<bool> {
     let config = Config::load()?;
-    let arch = if let Some(arch) = cli.arch.as_deref() {
+    let uses_architecture = matches!(
+        cli.command,
+        Command::Download { .. }
+            | Command::Depends { .. }
+            | Command::Manage(commands::Command::Install { .. } | commands::Command::Update { .. })
+    );
+    let arch = if !uses_architecture {
+        Architecture::native()
+    } else if let Some(arch) = cli.arch.as_deref() {
         Architecture::parse(arch)?
     } else if let Some(value) = config.get("default_architecture").filter(|v| !v.is_null()) {
         let value = value
@@ -235,15 +357,17 @@ async fn run(cli: Cli, out: &Output) -> Result<bool> {
                 out.data(&rows, &warnings, &[])?;
             } else {
                 out.table(
-                    &["Package", "Version", "Bucket", "Arch", "Scope", "State"],
+                    &["Package", "Version", "Bucket", "Arch", "State"],
                     rows.iter()
                         .map(|p| {
                             vec![
                                 p.name.clone(),
-                                p.version.clone().unwrap_or_else(|| "?".into()),
+                                rsc_core::presentation::version_scope(
+                                    p.version.as_deref().unwrap_or("?"),
+                                    &p.scope,
+                                ),
                                 p.bucket.clone().unwrap_or_else(|| "-".into()),
                                 p.architecture.clone().unwrap_or_else(|| "-".into()),
-                                p.scope.clone(),
                                 p.state.clone(),
                             ]
                         })
@@ -252,12 +376,25 @@ async fn run(cli: Cli, out: &Output) -> Result<bool> {
                 out.warnings(&warnings);
             }
         }
-        Command::Search { query } => {
+        Command::Search {
+            query,
+            explicit,
+            name_only,
+            with_description,
+        } => {
             let query = query.unwrap_or_default();
-            let report = rsc_core::search::local(&config, &query)?;
+            let options = rsc_core::search::Options {
+                explicit,
+                name_only,
+                with_description,
+            };
+            let report = rsc_core::search::local_with_options(&config, &query, options)?;
             let rows = report.rows;
             out.warnings(&report.warnings);
             if rows.is_empty() {
+                if !options.is_default() {
+                    bail!("No local matches found");
+                }
                 let remote =
                     rsc_core::native::invoke(&config, "search_remote", json!({"query":query}))?;
                 let matches = remote["rows"]
@@ -281,28 +418,7 @@ async fn run(cli: Cli, out: &Output) -> Result<bool> {
                 }
                 bail!("No matches found");
             }
-            out.table(
-                &[
-                    "Package",
-                    "Version",
-                    "Bucket",
-                    "Installed",
-                    "State",
-                    "Binaries",
-                ],
-                rows.iter()
-                    .map(|r| {
-                        vec![
-                            r.package.clone(),
-                            r.version.clone(),
-                            r.bucket.clone(),
-                            r.installed.clone(),
-                            r.state.clone(),
-                            r.binaries.clone(),
-                        ]
-                    })
-                    .collect(),
-            );
+            out.search_table(&rows, with_description);
         }
         Command::Info {
             package: input,
@@ -322,10 +438,20 @@ async fn run(cli: Cli, out: &Output) -> Result<bool> {
                             .map(|(key, value)| {
                                 (
                                     key.clone(),
-                                    value
-                                        .as_str()
-                                        .map(str::to_owned)
-                                        .unwrap_or_else(|| value.to_string()),
+                                    if key == "Installed" {
+                                        value
+                                            .as_array()
+                                            .into_iter()
+                                            .flatten()
+                                            .filter_map(Value::as_str)
+                                            .collect::<Vec<_>>()
+                                            .join(" | ")
+                                    } else {
+                                        value
+                                            .as_str()
+                                            .map(str::to_owned)
+                                            .unwrap_or_else(|| value.to_string())
+                                    },
                                 )
                             })
                             .collect(),
@@ -483,19 +609,12 @@ async fn run(cli: Cli, out: &Output) -> Result<bool> {
                 }
             }
         },
-        Command::Depends {
-            package,
-            architecture,
-        } => {
-            let arch = architecture
-                .as_deref()
-                .map(Architecture::parse)
-                .transpose()?
-                .unwrap_or(arch);
+        Command::Depends { package } => {
             let plans = rsc_core::manager::plan(&config, &[package], arch, false).await?;
             let installed = package::list(&config.layout, false)?;
             let rows=plans.into_iter().map(|(p,_,version)|{
-                let existing=installed.iter().find(|i|i.name.eq_ignore_ascii_case(&p.name) && i.error.is_none()).and_then(|i|i.version.clone()).unwrap_or_else(||"no".into());
+                let existing=installed.iter().find(|i|i.name.eq_ignore_ascii_case(&p.name) && i.error.is_none())
+                    .map(|i|rsc_core::presentation::version_scope(i.version.as_deref().unwrap_or("?"), &i.scope)).unwrap_or_else(||"no".into());
                 json!({"package":format!("{}/{}",p.bucket.as_deref().unwrap_or("local"),p.name),"version":version,"installed":existing,"depth":0})
             }).collect::<Vec<_>>();
             if out.json {
@@ -523,14 +642,7 @@ async fn run(cli: Cli, out: &Output) -> Result<bool> {
             packages,
             force,
             skip_hash_check,
-            no_update_scoop: _,
-            architecture,
         } => {
-            let arch = architecture
-                .as_deref()
-                .map(Architecture::parse)
-                .transpose()?
-                .unwrap_or(arch);
             let downloader = Downloader::new(&config)?.force(force);
             let report = Progress::reporter(out.json);
             let mut tasks = Vec::new();
@@ -637,15 +749,16 @@ async fn run(cli: Cli, out: &Output) -> Result<bool> {
             }
             return Ok(failures.is_empty());
         }
-        Command::Cache {
-            action,
-            mut packages,
-            all,
-        } => {
+        Command::Cache { action } => {
+            let (remove, mut packages, all) = match action {
+                Some(CacheCommand::Rm { packages, all }) => (true, packages, all),
+                Some(CacheCommand::Show { packages }) => (false, packages, false),
+                None => (false, Vec::new(), false),
+            };
             if all {
                 packages = vec!["*".into()];
             }
-            if action.as_deref() == Some("rm") {
+            if remove {
                 if packages.is_empty() {
                     bail!("A package name or '*' is required");
                 }
@@ -664,9 +777,6 @@ async fn run(cli: Cli, out: &Output) -> Result<bool> {
                     )
                 );
             } else {
-                if let Some(action) = action.filter(|s| s != "show") {
-                    packages.insert(0, action);
-                }
                 let query = format!(
                     "^(?:{})#",
                     if packages.is_empty() || packages.iter().any(|s| s == "*") {
@@ -872,6 +982,119 @@ mod cli_tests {
                 !matches!(cli.command, Command::Custom(_)),
                 "{args:?} routed to alias"
             );
+        }
+    }
+    #[test]
+    fn search_help_and_options_describe_actual_search_controls() {
+        let mut command = Cli::configured_command();
+        command.build();
+        let help = command
+            .find_subcommand_mut("search")
+            .unwrap()
+            .render_long_help()
+            .to_string();
+        assert!(
+            help.contains("--explicit")
+                && help.contains("--name-only")
+                && help.contains("--with-description")
+        );
+        assert!(!help.contains("--global") && !help.contains("--arch"));
+        assert!(
+            command
+                .find_subcommand_mut("install")
+                .unwrap()
+                .render_long_help()
+                .to_string()
+                .contains("--global")
+        );
+        let matches = Cli::configured_command()
+            .try_get_matches_from(["rsc", "search", "-e", "-D", "c++"])
+            .unwrap();
+        assert!(matches!(
+            Cli::from_arg_matches(&matches).unwrap().command,
+            Command::Search {
+                explicit: true,
+                with_description: true,
+                name_only: false,
+                ..
+            }
+        ));
+        assert!(
+            Cli::configured_command()
+                .try_get_matches_from(["rsc", "search", "-N", "-D", "editor"])
+                .is_err()
+        );
+        let matches = Cli::configured_command()
+            .try_get_matches_from(["rsc", "install", "-g", "--arch", "arm64", "git"])
+            .unwrap();
+        let cli = Cli::from_configured_matches(&matches).unwrap();
+        assert!(cli.global && cli.arch.as_deref() == Some("arm64"));
+    }
+    #[test]
+    fn every_command_exposes_only_applicable_scope_and_architecture_options() {
+        let mut command = Cli::configured_command();
+        command.build();
+        for sub in command.get_subcommands() {
+            if matches!(sub.get_name(), "help" | "_fetch" | "_hook") {
+                continue;
+            }
+            let ids = sub
+                .get_arguments()
+                .map(|arg| arg.get_id().as_str())
+                .collect::<Vec<_>>();
+            assert_eq!(
+                ids.contains(&"global"),
+                SCOPE_COMMANDS.contains(&sub.get_name()),
+                "{}",
+                sub.get_name()
+            );
+            assert_eq!(
+                ids.contains(&"arch"),
+                ARCH_COMMANDS.contains(&sub.get_name()),
+                "{}",
+                sub.get_name()
+            );
+        }
+        let rejected: &[&[&str]] = &[
+            &["search", "git", "-g"],
+            &["list", "--arch", "64bit"],
+            &["status", "-g"],
+            &["reset", "git", "-g"],
+            &["export", "-g"],
+            &["install", "git", "-u"],
+            &["download", "git", "--no-update-scoop"],
+            &["update", "--quiet"],
+            &["update", "-f"],
+            &["update", "-g"],
+            &["checkup", "--anything"],
+            &["create", "--arch", "64bit"],
+            &["alias", "list", "--arch", "64bit"],
+            &["alias", "rm", "sample", "-v"],
+            &["virustotal", "git", "--passthru"],
+            &["virustotal", "git", "-u"],
+            &["cache", "show", "-a"],
+            &["shim", "list", "--arch", "64bit"],
+        ];
+        for args in rejected {
+            assert!(
+                Cli::configured_command()
+                    .try_get_matches_from(std::iter::once("rsc").chain(args.iter().copied()))
+                    .is_err(),
+                "{args:?}"
+            );
+        }
+        for args in [
+            vec!["install", "-a", "arm64", "git"],
+            vec!["update", "-f", "-a"],
+            vec!["update", "git", "-g"],
+            vec!["depends", "-a", "32bit", "git"],
+            vec!["alias", "list", "-v"],
+            vec!["shim", "list", "-g"],
+            vec!["cache", "rm", "-a"],
+        ] {
+            Cli::configured_command()
+                .try_get_matches_from(std::iter::once("rsc").chain(args.iter().copied()))
+                .unwrap_or_else(|error| panic!("{args:?}: {error}"));
         }
     }
     #[test]

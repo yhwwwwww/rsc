@@ -4,7 +4,9 @@ use std::io::{self, IsTerminal};
 
 #[derive(Clone, Copy, Debug)]
 pub enum Tone {
+    Heading,
     Primary,
+    Bucket,
     Version,
     Success,
     Warning,
@@ -21,13 +23,23 @@ pub fn stderr_color() -> bool {
 pub fn paint(text: &str, tone: Tone, color: bool) -> String {
     let s = style(text).force_styling(color);
     match tone {
-        Tone::Primary => s.cyan().bold().to_string(),
+        Tone::Heading => s.color256(117).bold().to_string(),
+        Tone::Primary => s.magenta().bright().bold().to_string(),
+        Tone::Bucket => s.green().to_string(),
         Tone::Version => s.magenta().to_string(),
         Tone::Success => s.green().to_string(),
         Tone::Warning => s.yellow().to_string(),
         Tone::Error => s.red().bold().to_string(),
         Tone::Secondary => s.dim().to_string(),
         Tone::Normal => text.to_owned(),
+    }
+}
+/// Human output combines installed version and scope; structured records keep separate fields.
+pub fn version_scope(version: &str, scope: &str) -> String {
+    if scope.is_empty() || scope == "-" {
+        version.to_owned()
+    } else {
+        format!("{version} ({scope})")
     }
 }
 pub fn state_tone(text: &str) -> Tone {
@@ -92,7 +104,7 @@ pub fn json(text: &str, color: bool) -> String {
                     next += 1;
                 }
                 if bytes.get(next) == Some(&b':') {
-                    Tone::Primary
+                    Tone::Heading
                 } else {
                     Tone::Success
                 }
@@ -139,7 +151,13 @@ mod tests {
         .unwrap();
         let colored = json(&text, true);
         assert_eq!(console::strip_ansi_codes(&colored), text);
-        for sequence in ["\x1b[36m", "\x1b[32m", "\x1b[35m", "\x1b[33m", "\x1b[2m"] {
+        for sequence in [
+            "\x1b[38;5;117m",
+            "\x1b[32m",
+            "\x1b[35m",
+            "\x1b[33m",
+            "\x1b[2m",
+        ] {
             assert!(colored.contains(sequence), "missing {sequence:?}");
         }
         assert_eq!(json(&text, false), text);

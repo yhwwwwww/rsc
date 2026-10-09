@@ -10,7 +10,7 @@ The independent Rust version is tested on Windows with a GNU x64 toolchain. The 
 
 ## Latest result
 
-The native release passed **33 Rust tests and 34 Windows integration groups**, with no failures. Seven read-only differential queries against the installed Scoop also matched every row, order and binary name. The tested binary checksum is preserved in [test-results.json](test-results.json).
+The native release passed **39 Rust tests and 34 Windows integration groups**, with no failures. Seven read-only differential queries against the installed Scoop also matched every row, order and binary name. The tested binary checksum is preserved in [test-results.json](test-results.json).
 
 Search fixtures cover executable/alias precedence, top-level versus architecture-specific bins, escaped JSON keys, manifest edits/deletions, bucket identity, user/global scope, held packages, current/outdated/newer versions and unknown nightly versions. The direct manager launcher is checked for hard-link identity, self reset and forwarding to a changed target.
 
@@ -50,5 +50,7 @@ The published records contain the current native results, not the previous wrapp
 [Development](development.md) · [Architecture](architecture.md)
 
 ## Query and color regression
+
+The current suite also checks the complete scope/architecture option matrix, ignored-option rejection, meaningful alias verbosity, literal/description/name-only search (including SQLite wildcard escaping), version/scope formatting, distinct heading/subject/bucket styles, and narrow/unknown-size progress templates.
 
 The suite also checks semantic table colors, JSON token colors, Unicode/escape preservation, plain redirected JSON, NO_COLOR, ordered parallel queries and live manifest edits. A real Windows terminal was checked with colors enabled. Performance samples and result-equivalence checks are documented in [Performance](performance.md).

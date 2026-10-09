@@ -5,6 +5,25 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{collections::HashSet, path::Path};
 
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Options {
+    pub explicit: bool,
+    pub name_only: bool,
+    pub with_description: bool,
+}
+impl Options {
+    pub fn is_default(self) -> bool {
+        !self.explicit && !self.name_only && !self.with_description
+    }
+}
+#[derive(Debug, Serialize)]
+pub struct Installation {
+    pub scope: String,
+    pub version: String,
+    pub state: String,
+    pub held: bool,
+    pub source_unknown: bool,
+}
 #[derive(Debug)]
 pub struct SearchIndex {
     pub packages: Vec<SearchMatch>,
@@ -17,6 +36,7 @@ pub struct SearchMatch {
     pub source: String,
     pub version: String,
     pub binaries: Vec<String>,
+    pub description: String,
 }
 #[derive(Debug)]
 pub struct Report {
@@ -31,6 +51,8 @@ pub struct Row {
     pub binaries: String,
     pub installed: String,
     pub state: String,
+    pub installations: Vec<Installation>,
+    pub description: String,
 }
 #[derive(Deserialize)]
 struct SearchManifest {
@@ -38,6 +60,8 @@ struct SearchManifest {
     version: String,
     #[serde(default, alias = "Bin")]
     bin: Value,
+    #[serde(default, alias = "Description")]
+    description: Value,
 }
 
 /// Only top-level bin entries participate in uncached Scoop search. Match the
@@ -85,7 +109,15 @@ pub fn matching_binaries(bin: &Value, re: &fancy_regex::Regex) -> Result<Vec<Str
 }
 
 pub fn scan(root: &Path, input: &str) -> Result<SearchIndex> {
-    let re = query::matcher(input)?;
+    scan_with_options(root, input, Options::default())
+}
+pub fn scan_with_options(root: &Path, input: &str, options: Options) -> Result<SearchIndex> {
+    let expression = if options.explicit {
+        regex::escape(input)
+    } else {
+        input.to_owned()
+    };
+    let re = query::matcher(&expression)?;
     let buckets = bucket::inventory(root)?;
     let catalogues = util::parallel_map(&buckets, |b| {
         bucket::manifest_paths(&b.path).map(|paths| {
@@ -118,6 +150,9 @@ pub fn scan(root: &Path, input: &str) -> Result<SearchIndex> {
                 .context("Manifest has no filename")?
                 .to_string_lossy();
             let named = query::matches(&re, &name)?;
+            if options.name_only && !named {
+                continue;
+            }
             let text = match util::read_text(path) {
                 Ok(text) => text,
                 Err(e) => {
@@ -128,6 +163,7 @@ pub fn scan(root: &Path, input: &str) -> Result<SearchIndex> {
             // An unnamed result needs a top-level bin. Skip files that cannot
             // contain one; escaped JSON property names still take the parser path.
             if !named
+                && !options.with_description
                 && !text.contains("\"bin\"")
                 && !text.contains("\"Bin\"")
                 && !text.contains("\"\\u")
@@ -135,7 +171,11 @@ pub fn scan(root: &Path, input: &str) -> Result<SearchIndex> {
                 continue;
             }
             // Scoop prefilters by name or raw content before parsing JSON.
-            if !named && !query::matches(&re, &text)? {
+            if !named
+                && !options.explicit
+                && !options.with_description
+                && !query::matches(&re, &text)?
+            {
                 continue;
             }
             let manifest: SearchManifest = match serde_json::from_str(&text) {
@@ -150,7 +190,9 @@ pub fn scan(root: &Path, input: &str) -> Result<SearchIndex> {
             } else {
                 matching_binaries(&manifest.bin, &re)?
             };
-            if !named && binaries.is_empty() {
+            let description = manifest.description.as_str().unwrap_or("");
+            let described = options.with_description && query::matches(&re, description)?;
+            if !named && binaries.is_empty() && !described {
                 continue;
             }
             packages.push(SearchMatch {
@@ -159,6 +201,11 @@ pub fn scan(root: &Path, input: &str) -> Result<SearchIndex> {
                 source: path.display().to_string(),
                 version: manifest.version,
                 binaries,
+                description: if options.with_description {
+                    description.to_owned()
+                } else {
+                    String::new()
+                },
             });
         }
         Ok(SearchIndex { packages, warnings })
@@ -176,8 +223,11 @@ pub fn scan(root: &Path, input: &str) -> Result<SearchIndex> {
 }
 
 pub fn local(config: &Config, input: &str) -> Result<Report> {
+    local_with_options(config, input, Options::default())
+}
+pub fn local_with_options(config: &Config, input: &str, options: Options) -> Result<Report> {
     let (mut rows, warnings) = if database::enabled(config) {
-        let cached = database::search(config, input)?;
+        let cached = database::search_with_options(config, input, options)?;
         let rows = cached
             .as_array()
             .context("Invalid cached search result")?
@@ -191,12 +241,18 @@ pub fn local(config: &Config, input: &str) -> Result<Report> {
                     binaries: text("bins"),
                     installed: String::new(),
                     state: String::new(),
+                    installations: Vec::new(),
+                    description: if options.with_description {
+                        text("description")
+                    } else {
+                        String::new()
+                    },
                 }
             })
             .collect();
         (rows, Vec::new())
     } else {
-        let found = scan(&config.layout.buckets(), input)?;
+        let found = scan_with_options(&config.layout.buckets(), input, options)?;
         (
             found
                 .packages
@@ -208,6 +264,8 @@ pub fn local(config: &Config, input: &str) -> Result<Report> {
                     binaries: p.binaries.join(" | "),
                     installed: String::new(),
                     state: String::new(),
+                    installations: Vec::new(),
+                    description: p.description,
                 })
                 .collect::<Vec<_>>(),
             found.warnings,
@@ -243,6 +301,13 @@ pub fn local(config: &Config, input: &str) -> Result<Report> {
                 ""
             };
             states.push(format!("{}: {state}{held}{source}", p.scope));
+            row.installations.push(Installation {
+                scope: p.scope.clone(),
+                version: version.to_owned(),
+                state: state.to_owned(),
+                held: p.held,
+                source_unknown: p.bucket.is_none(),
+            });
         }
         row.installed = versions.join(" | ");
         row.state = states.join(", ");

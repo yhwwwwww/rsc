@@ -281,3 +281,111 @@ fn search_version_states_cover_newer_unknown_nightly_and_broken() {
     assert_eq!(state(&make(None, None), "1"), "broken");
     assert_eq!(state(&make(Some("1"), Some("incomplete")), "1"), "broken");
 }
+
+#[test]
+fn search_options_control_literal_names_and_decoded_descriptions() {
+    use rsc_core::search::{Options, scan_with_options};
+    let t = tempfile::tempdir().unwrap();
+    put(t.path(), "main/bucket/git.json", json!({"version":"1"}));
+    put(
+        t.path(),
+        "main/bucket/wrapper.json",
+        json!({"version":"1","bin":"git.exe"}),
+    );
+    put(
+        t.path(),
+        "main/bucket/editor.json",
+        json!({"version":"1","description":"Git C++ editor 中文"}),
+    );
+    let names = scan_with_options(
+        t.path(),
+        "git",
+        Options {
+            name_only: true,
+            ..Options::default()
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        names
+            .packages
+            .iter()
+            .map(|p| p.name.as_str())
+            .collect::<Vec<_>>(),
+        ["git"]
+    );
+    let literal = scan_with_options(
+        t.path(),
+        "c++",
+        Options {
+            explicit: true,
+            with_description: true,
+            ..Options::default()
+        },
+    )
+    .unwrap();
+    assert_eq!(literal.packages[0].name, "editor");
+    assert_eq!(literal.packages[0].description, "Git C++ editor 中文");
+    let encoded = t.path().join("main/bucket/encoded.json");
+    fs::write(encoded, r#"{"version":"2","description":"\u4e2d\u6587"}"#).unwrap();
+    let described = scan_with_options(
+        t.path(),
+        "中文",
+        Options {
+            with_description: true,
+            ..Options::default()
+        },
+    )
+    .unwrap();
+    assert_eq!(described.packages.len(), 2);
+    assert!(
+        scan_with_options(t.path(), "中文", Options::default())
+            .unwrap()
+            .packages
+            .is_empty()
+    );
+}
+#[test]
+fn sqlite_search_options_restrict_fields_and_escape_literal_wildcards() {
+    use rsc_core::{database, search::Options};
+    let t = tempfile::tempdir().unwrap();
+    let c = config(t.path());
+    put(
+        t.path(),
+        "buckets/main/bucket/git.json",
+        json!({"version":"1"}),
+    );
+    put(
+        t.path(),
+        "buckets/main/bucket/wrapper.json",
+        json!({"version":"1","bin":"git.exe"}),
+    );
+    put(
+        t.path(),
+        "buckets/main/bucket/editor.json",
+        json!({"version":"1","description":"100% editor"}),
+    );
+    database::refresh(&c).unwrap();
+    let names = database::search_with_options(
+        &c,
+        "git",
+        Options {
+            name_only: true,
+            ..Options::default()
+        },
+    )
+    .unwrap();
+    assert_eq!(names.as_array().unwrap().len(), 1);
+    let descriptions = database::search_with_options(
+        &c,
+        "%",
+        Options {
+            explicit: true,
+            with_description: true,
+            ..Options::default()
+        },
+    )
+    .unwrap();
+    assert_eq!(descriptions.as_array().unwrap().len(), 1);
+    assert_eq!(descriptions[0]["package"], "editor");
+}

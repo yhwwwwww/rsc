@@ -664,6 +664,22 @@ def query_checks(s):
             assert result.returncode==0,result.stderr
             assert "\x1b[" not in result.stdout,"ANSI escaped into redirected JSON"
             assert json.loads(result.stdout)==value
+        help_text=s.run("search","--help").stdout
+        assert "--explicit" in help_text and "--name-only" in help_text and "--with-description" in help_text
+        assert "--global" not in help_text and "--arch" not in help_text
+        for command,options in [
+            ("status",["-g"]),("list",["--arch","64bit"]),("checkup",["--anything"]),
+            ("update",["--quiet"]),("download",["rsc-query-tool","-u"]),
+            ("virustotal",["rsc-query-tool","--passthru"])
+        ]:
+            s.run(command,*options,expected=2)
+        s.run("alias","add","rsc-query-option","Write-Output option","Query description")
+        assert "Summary" not in s.run("alias","list").stdout
+        assert "Query description" in s.run("alias","list","-v").stdout
+        s.run("alias","rm","rsc-query-option")
+        result=s.run("search","-N","rsc-query-tool")
+        assert "rsc-query-tool" in result.stdout and "State" not in result.stdout
+        assert "Description" in s.run("search","-D","中文").stdout
         value["version"]="2.0"
         write_json(manifest,value)
         assert "2.0" in s.run("search","^rsc-query-tool$").stdout

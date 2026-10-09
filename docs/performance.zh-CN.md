@@ -2,9 +2,21 @@
 
 [English — 主版本](performance.md) · [README](../README.zh-CN.md)
 
+## 当前搜索选项
+
+完成选项核对及输出调整的本机安装版，用 `hyperfine --warmup 5 --runs 20 --shell none` 测量。默认搜索包含名称及二进制，共 80 个结果；rsc 仅名称搜索及 Hok 默认搜索均为 76 个结果。生成物校验值与全部样本保存在 [cli-benchmark.json](cli-benchmark.json)。
+
+| 命令 | 平均耗时 |
+| --- | ---: |
+| `rsc search git` | 72.5 ms |
+| `rsc search -N git` | 26.1 ms |
+| `hok search git` | 53.5 ms |
+
+这是同一本机的热文件缓存测量；默认搜索与仅名称搜索覆盖的字段不同。
+
 ## 对齐 Scoop 的搜索与本机命令入口
 
-新搜索基准使用 `hyperfine --warmup 5 --runs 20 --shell none`，比较同一本机的已安装命令，共用 5 个 bucket / 5,189 份清单。重定向输出，耗时包含启动。原始样本和程序校验值见 [search-benchmark.json](search-benchmark.json)。
+下列搜索基准是记录中校验值所对应发布版的快照，测于后续的已安装版本配色和搜索选项修改之前。它使用 `hyperfine --warmup 5 --runs 20 --shell none`，比较同一本机的已安装命令，共用 5 个 bucket / 5,189 份清单。重定向输出，耗时包含启动。原始样本和程序校验值见 [search-benchmark.json](search-benchmark.json)。
 
 | 已安装命令 | 平均耗时 |
 | --- | ---: |
