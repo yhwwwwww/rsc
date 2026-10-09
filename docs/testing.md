@@ -10,15 +10,16 @@ The independent Rust version is tested on Windows with a GNU x64 toolchain. The 
 
 ## Latest result
 
-The performance optimization release passed **29 Rust tests and 33 Windows integration groups**, with no failures. Its binary checksum is preserved in [test-results.json](test-results.json).
+The native release passed **33 Rust tests and 34 Windows integration groups**, with no failures. Seven read-only differential queries against the installed Scoop also matched every row, order and binary name. The tested binary checksum is preserved in [test-results.json](test-results.json).
 
-The later status report fix was built and manually inspected on the live installation: bucket update notices precede the package table, with no stderr warnings for those notices. This inspection does not replace the completed full suite. [build-info.json](build-info.json) identifies the newer artifact and the full suite's baseline.
+Search fixtures cover executable/alias precedence, top-level versus architecture-specific bins, escaped JSON keys, manifest edits/deletions, bucket identity, user/global scope, held packages, current/outdated/newer versions and unknown nightly versions. The direct manager launcher is checked for hard-link identity, self reset and forwarding to a changed target.
 
 ## Run
 
 ```powershell
 .\scripts\test.ps1
 .\scripts\test.ps1 -SkipBuild -Phase native
+python tests/search_scoop.py
 ```
 
 `test.ps1` runs Rust tests, builds independently written fixture executables and launches the Python integration harness. It uses a system temporary directory with spaces and Chinese characters. Live Scoop configuration and the relevant user environment registry entries are preserved.

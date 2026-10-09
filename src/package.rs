@@ -20,6 +20,23 @@ pub struct Installed {
     pub error: Option<String>,
 }
 pub fn list(layout: &Layout, only_global: bool) -> Result<Vec<Installed>> {
+    list_selected(layout, only_global, None)
+}
+/// Search needs metadata only for package names present in its result set.
+pub fn list_matching(
+    layout: &Layout,
+    names: &std::collections::HashSet<String>,
+) -> Result<Vec<Installed>> {
+    if names.is_empty() {
+        return Ok(Vec::new());
+    }
+    list_selected(layout, false, Some(names))
+}
+fn list_selected(
+    layout: &Layout,
+    only_global: bool,
+    names: Option<&std::collections::HashSet<String>>,
+) -> Result<Vec<Installed>> {
     let mut result = Vec::new();
     for global in [false, true] {
         if only_global && !global {
@@ -33,10 +50,13 @@ pub fn list(layout: &Layout, only_global: bool) -> Result<Vec<Installed>> {
             fs::read_dir(&root).with_context(|| format!("Cannot read {}", root.display()))?
         {
             let entry = entry?;
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if names.is_some_and(|names| !names.contains(&name.to_ascii_lowercase())) {
+                continue;
+            }
             if !entry.path().is_dir() {
                 continue;
             }
-            let name = entry.file_name().to_string_lossy().into_owned();
             if name.eq_ignore_ascii_case("scoop") {
                 continue;
             }

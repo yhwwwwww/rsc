@@ -12,3 +12,4 @@ pub mod shim;
 pub mod util;
 
 pub mod presentation;
+pub mod search;

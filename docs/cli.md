@@ -32,6 +32,14 @@ Commands use Scoop's names and direct style.
 | `virustotal app...` | Query VirusTotal; requires `virustotal_api_key` |
 | `help [command]` | Show command help |
 
+## Search results
+
+`search [query]` follows Scoop's default name and binary search. Without SQLite, it uses a case-insensitive regular expression, searches names and top-level `bin` entries, and displays the matched executable filenames or aliases in `Binaries`. A name match leaves that column blank. Architecture-specific `bin` entries and descriptions do not add matches. Scoop's raw-content prefilter also applies before binary matching. With SQLite enabled, Scoop's name/binary/shortcut LIKE behavior remains in use.
+
+`Installed` shows the installed version and user/global scope for the same bucket. `State` distinguishes `current` (green), `outdated` (yellow), `newer` and `broken` (red); held packages retain their hold indication. An installation from a different bucket does not mark a same-name result as installed. Missing source metadata is indicated explicitly. Unversioned nightly manifests show `unknown (nightly)` rather than claiming a latest version.
+
+Versions are compared with the local bucket manifests; search does not fetch updates. Bucket priority and duplicate names are retained. No persistent search cache is added.
+
 ## Options
 
 - `-g` / `--global`: global scope; writes require administrator rights.

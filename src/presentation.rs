@@ -45,6 +45,7 @@ pub fn state_tone(text: &str) -> Tone {
         "skipped",
         "warning",
         "pending",
+        "unknown",
     ]
     .iter()
     .any(|w| s.contains(w))

@@ -2,7 +2,34 @@
 
 [English — 主版本](performance.md) · [README](../README.zh-CN.md)
 
-## 测量方式
+## 对齐 Scoop 的搜索与本机命令入口
+
+新搜索基准使用 `hyperfine --warmup 5 --runs 20 --shell none`，比较同一本机的已安装命令，共用 5 个 bucket / 5,189 份清单。重定向输出，耗时包含启动。原始样本和程序校验值见 [search-benchmark.json](search-benchmark.json)。
+
+| 已安装命令 | 平均耗时 |
+| --- | ---: |
+| `rsc search git` 优化前 | 112.6 ms |
+| `rsc search git` 优化后 | 81.3 ms |
+| `hok search git` | 58.3 ms |
+| `hok search -B git` | 108.4 ms |
+| `scoop search git` (经由 `scoop.cmd`) | 2446.4 ms |
+
+新版 rsc 比之前快 1.39 倍。Hok 默认只搜名称，仍比 rsc 的名称/二进制搜索快 1.39 倍；rsc 还读取匹配软件的来源、范围及版本状态。Hok 开启二进制搜索后，rsc 耗时为其 0.75 倍。耗时受文件系统缓存、防病毒扫描及进程调度影响。
+
+`search git` 在 Scoop 和 rsc 中均返回 80 条，Hok 默认返回 76 条。多出的 `biodiff`、`gcloud`、`psutils`、`worktrunk` 来自可执行文件名匹配。已使用本机实际 Scoop 对照七组查询，名称、版本、bucket 顺序及匹配的二进制名称一致。
+
+搜索只解析必要字段，跳过无法贡献二进制匹配的清单，仅读取结果涉及的软件安装信息。清单变化即时生效，没有增加持久搜索缓存。支持硬链接的文件系统中，经校验的 rsc 命令入口与管理器共用程序文件，省去子进程启动；固定参数或目标变化时仍正常转发。
+
+复现：
+
+```powershell
+.\scripts\benchmark_search.ps1
+python tests/search_scoop.py
+```
+
+## 较早的查询基准
+
+### 测量方式
 
 Windows 11，GNU x64 release 构建，16 个逻辑处理器。本机同一份 Scoop 安装包含 5 个 bucket、5,189 份清单，关闭 SQLite 搜索。两者读取相同的 bucket 目录；Hok 搜索使用 `-B`，把二进制别名纳入搜索。
 
@@ -18,7 +45,7 @@ Windows 11，GNU x64 release 构建，16 个逻辑处理器。本机同一份 Sc
 
 Hok 0.1.0-beta.7 没有 `status` 命令，因此本地状态使用之前的原生 rsc 版本作为基线。这些数据说明本数据集上的查询速度已与 Hok 接近，不保证其他机器具有相同耗时。
 
-## 实现调整
+### 实现调整
 
 - 一次状态操作只枚举一次 bucket 文件名，按名称查询每个已安装软件。
 - 安装信息只读取一次，重复使用依赖名称集合。
@@ -35,13 +62,13 @@ Hok 0.1.0-beta.7 没有 `status` 命令，因此本地状态使用之前的原�
 
 另行测量默认 `status` 的实际联网路径（3 次取中位数）：优化前 5.11 秒，优化后 0.99 秒，bucket 更新警告一致。耗时受网络影响；样本在原始记录的 `remote_status` 中单独保存。
 
-## 结果核对
+### 结果核对
 
 基准程序核对优化前后的搜索和列表文本，以及清单 JSON。本地状态在归一化新增的明确 `current` 状态后进行比较。Rust 测试覆盖忽略大小写、二进制别名、架构字段、嵌套清单、稳定顺序、错误清单、修改与删除、用户与全局安装、锁定与失败与已移除的软件、缺失依赖及夜间版本。
 
 上表测量的是程序本身。另行测量已安装命令入口，包含 shim 和子进程启动。`search jq`：rsc 102.3 ms，Hok 105.4 ms。`list`：rsc 44.6 ms，Hok 41.5 ms。同样先预热一次，再测量 7 次取中位数；样本保存于 `installed_launchers`。
 
-## 重现
+### 重现
 
 ```powershell
 python scripts/benchmark_queries.py after hok

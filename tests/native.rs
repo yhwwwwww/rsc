@@ -116,3 +116,16 @@ fn utf16_metadata() {
     std::fs::write(&p, bytes).unwrap();
     assert_eq!(Manifest::read(&p).unwrap().description(), "中文");
 }
+
+#[test]
+fn file_identity_distinguishes_hard_links_from_identical_copies() {
+    let t = tempfile::tempdir().unwrap();
+    let a = t.path().join("source");
+    let b = t.path().join("linked");
+    let c = t.path().join("copied");
+    std::fs::write(&a, b"same bytes").unwrap();
+    std::fs::hard_link(&a, &b).unwrap();
+    std::fs::copy(&a, &c).unwrap();
+    assert!(rsc_core::util::same_file(&a, &b).unwrap());
+    assert!(!rsc_core::util::same_file(&a, &c).unwrap());
+}

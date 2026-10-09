@@ -2,7 +2,34 @@
 
 [简体中文](performance.zh-CN.md) · [README](../README.md)
 
-## Measurement
+## Scoop-compatible search and installed entry points
+
+The new search benchmark uses `hyperfine --warmup 5 --runs 20 --shell none` against installed commands on the same machine and the same 5 buckets / 5,189 manifests. Output is redirected, and startup time is included. Raw measurements and binary hashes are in [search-benchmark.json](search-benchmark.json).
+
+| Installed command | Mean |
+| --- | ---: |
+| `rsc search git` before | 112.6 ms |
+| `rsc search git` after | 81.3 ms |
+| `hok search git` | 58.3 ms |
+| `hok search -B git` | 108.4 ms |
+| `scoop search git` (via `scoop.cmd`) | 2446.4 ms |
+
+The new rsc entry is 1.39x faster than its previous release. Hok's name-only default remains 1.39x faster than rsc's name/binary search; rsc also resolves installed source, scope and version state. With binary search enabled in Hok, rsc takes 0.75x its time. Measurements vary with filesystem cache, antivirus activity and process scheduling.
+
+`search git` returns 80 matches in both Scoop and rsc, and 76 with Hok's default. The additional matches are `biodiff`, `gcloud`, `psutils` and `worktrunk`, found through executable names. Seven queries were compared against the actual installed Scoop; names, versions, bucket order and matching binary names agreed.
+
+The search path parses only required fields, skips manifests that cannot contribute a binary match, and reads installed metadata only for matching package names. It keeps live-file visibility and adds no persistent search cache. The verified rsc entry uses a hard link to its manager executable on supported filesystems, eliminating a child-process launch; fixed arguments or a changed target retain forwarding.
+
+Reproduce with:
+
+```powershell
+.\scripts\benchmark_search.ps1
+python tests/search_scoop.py
+```
+
+## Earlier query benchmark
+
+### Measurement
 
 Windows 11, GNU x64 release build, 16 logical processors. The same local Scoop installation contains 5 buckets and 5,189 manifests. SQLite search is disabled. Both programs read the same bucket directories; Hok search uses `-B` to include executable aliases.
 
@@ -18,7 +45,7 @@ Each result is the median of 7 runs after one warmup. Timings include process cr
 
 Hok 0.1.0-beta.7 has no `status` command. The local status comparison therefore uses the previous native rsc release as its baseline. The results establish comparable query speed on this dataset; they do not guarantee a particular latency on other machines.
 
-## Implementation changes
+### Implementation changes
 
 - Enumerate bucket filenames once for a status operation and use a name lookup for every installed package.
 - Read installed metadata once, and reuse a dependency name set.
@@ -35,13 +62,13 @@ No persistent search cache is introduced. Manifest changes and deletions are vis
 
 A separate live network check of default `status` (median of 3 runs) measured 5.11 s before and 0.99 s after, with the same bucket update warnings. These timings vary with the network. Samples are recorded separately under `remote_status` in the raw record.
 
-## Result checks
+### Result checks
 
 The benchmark compares previous and current rsc search/list output and manifest JSON. Local status output is compared after normalizing the newly explicit `current` state. Rust fixtures cover case-insensitive names, executable aliases, architecture fields, nested manifests, deterministic order, malformed manifests, edits/deletions, user/global scope, held/broken/removed packages, missing dependencies and nightly versions.
 
 Direct executables are timed in the table above. Installed command entry points were also measured separately, including the shim and child process startup. `search jq`: rsc 102.3 ms, Hok 105.4 ms. `list`: rsc 44.6 ms, Hok 41.5 ms. The same warmup and 7-run median are used; raw samples are under `installed_launchers`.
 
-## Reproduce
+### Reproduce
 
 ```powershell
 python scripts/benchmark_queries.py after hok

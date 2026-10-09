@@ -32,6 +32,14 @@
 | `virustotal app...` | 查询 VirusTotal，需要 `virustotal_api_key` |
 | `help [command]` | 查看帮助 |
 
+## 搜索结果
+
+`search [query]` 遵循 Scoop 默认的名称和二进制搜索。关闭 SQLite 时，使用忽略大小写的正则表达式，搜索名称及顶层 `bin`，并在 `Binaries` 列展示匹配到的可执行文件名或别名。名称匹配时该列留空，架构下的 `bin` 和描述不会额外增加结果。二进制匹配前也遵循 Scoop 的原始文本预筛选规则。启用 SQLite 后，沿用 Scoop 对名称、二进制及快捷方式的 LIKE 搜索行为。
+
+`Installed` 显示同一 bucket 的已安装版本及用户/全局范围。`State` 区分 `current`（绿色，版本一致）、`outdated`（黄色，版本落后）、`newer`（已安装版本更高）和 `broken`（红色，安装损坏）；hold 状态会保留。其他 bucket 中安装的同名软件不会错误标记在当前结果上；来源信息缺失会明确显示。无固定版本的 nightly 清单显示 `unknown (nightly)`，不声称已是最新版。
+
+版本与本地 bucket 清单比较，搜索不会联网拉取更新。保留 bucket 优先级及重复名称结果，没有新增持久搜索缓存。
+
 ## 选项
 
 - `-g` / `--global`：全局范围；写操作需要管理员权限。

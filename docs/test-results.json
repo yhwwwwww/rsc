@@ -1,19 +1,19 @@
 {
   "schema": 1,
-  "date": "2026-10-09T21:01:41.010414+08:00",
+  "date": "2026-10-09T21:52:40.393670+08:00",
   "implementation": "independent native Rust",
   "platform": "Windows-11-10.0.26200-SP0",
-  "binary_sha256": "efc1e2549a526ab06ccc67294b050bbbb250f805f4a4aecee13aea4acbc7348a",
+  "binary_sha256": "bcf57b204e3e1456162398cc08aed4dabfcc9c1d5d1d5f07ad77bcbac71cd610",
   "scoop_reference": {
     "version": "v0.6.0",
     "commit": "e6aa3b366bdee8ed138c1e0f7b85192ebdd35d0f"
   },
   "rust_tests": {
-    "passed": 29,
+    "passed": 33,
     "failed": 0
   },
   "integration_tests": {
-    "passed": 33,
+    "passed": 34,
     "failed": 0
   },
   "checks": {
@@ -26,229 +26,181 @@
     "no_color_plain": true,
     "clipped_states_keep_priority": true,
     "installed_binary_and_shim_match": true,
-    "installed_queries_verified": true
+    "installed_queries_verified": true,
+    "scoop_search_rows_order_and_binaries": true,
+    "search_installed_bucket_scope_version_states": true,
+    "direct_manager_launcher_and_changed_target": true
   },
   "cases": [
     {
       "name": "parallel download, SHA256, cache reuse and force",
       "passed": true,
-      "seconds": 0.51,
-      "detail": {
-        "bytes": 8388608,
-        "peak_parallel_requests": 4
-      }
+      "seconds": 0.44
     },
     {
       "name": "network ignore",
       "passed": true,
-      "seconds": 0.38,
-      "detail": null
+      "seconds": 0.34
     },
     {
       "name": "network wrong",
       "passed": true,
-      "seconds": 0.35,
-      "detail": null
+      "seconds": 0.35
     },
     {
       "name": "network retry",
       "passed": true,
-      "seconds": 0.24,
-      "detail": null
+      "seconds": 0.2
     },
     {
       "name": "network disconnect",
       "passed": true,
-      "seconds": 1.24,
-      "detail": null
+      "seconds": 1.19
     },
     {
       "name": "hash mismatch leaves no published cache",
       "passed": true,
-      "seconds": 0.19,
-      "detail": null
+      "seconds": 0.17
     },
     {
       "name": "private_hosts and manifest cookies",
       "passed": true,
-      "seconds": 0.24,
-      "detail": null
+      "seconds": 0.22
     },
     {
       "name": "interrupted segmented download resumes",
       "passed": true,
-      "seconds": 4.21,
-      "detail": {
-        "resumed_offsets": [
-          2121728,
-          6324224,
-          4227072,
-          32768
-        ]
-      }
+      "seconds": 4.19
     },
     {
       "name": "cache regex removal and --all",
       "passed": true,
-      "seconds": 0.05,
-      "detail": null
+      "seconds": 0.05
     },
     {
       "name": "bucket add from Git",
       "passed": true,
-      "seconds": 0.4,
-      "detail": "CompletedProcess(args=['D:\\\\Documents\\\\My Documents\\\\Proj\\\\rsc\\\\dist\\\\rsc.exe', 'bucket', 'add', 'rsc-test', 'C:\\\\Users\\\\lordw\\\\AppData\\\\Local\\\\Temp\\\\rsc-native-tests-vvwouehl\\\\隔离 Scoop\\\\remote.git'], returncode=0, stdout='Package / bucket  Version  Scope  Result\\nrsc-test          -        -      added\\n', stderr='')"
+      "seconds": 0.34
     },
     {
       "name": "rsc install: hooks, persist, env, shortcuts, modules; Scoop list",
       "passed": true,
-      "seconds": 3.4,
-      "detail": null
+      "seconds": 2.88
     },
     {
       "name": "exe shim: fixed args, spaces, quotes, empty, Unicode, stdin, exit 42",
       "passed": true,
-      "seconds": 0.66,
-      "detail": null
+      "seconds": 0.6
     },
     {
       "name": "query commands, custom aliases and shim inspection",
       "passed": true,
-      "seconds": 1.11,
-      "detail": null
+      "seconds": 0.97
     },
     {
       "name": "SQLite initialization and binary search",
       "passed": true,
-      "seconds": 0.05,
-      "detail": null
+      "seconds": 0.05
     },
     {
       "name": "hold, Git update, preserve data, reset, force no-cache, cleanup, SQL history",
       "passed": true,
-      "seconds": 10.95,
-      "detail": null
+      "seconds": 10.35
     },
     {
       "name": "Scoop uninstalls rsc-installed package and preserves persist",
       "passed": true,
-      "seconds": 1.64,
-      "detail": null
+      "seconds": 1.35
     },
     {
       "name": "Scoop install -> rsc reset/uninstall --purge",
       "passed": true,
-      "seconds": 5.24,
-      "detail": null
+      "seconds": 4.85
     },
     {
       "name": "pinned version from SQLite and Git history",
       "passed": true,
-      "seconds": 4.57,
-      "detail": null
+      "seconds": 4.68
     },
     {
       "name": "no_junction installation and Scoop reset",
       "passed": true,
-      "seconds": 6.7,
-      "detail": null
+      "seconds": 7.51
     },
     {
       "name": "failed hook -> marked broken -> retry repairs installation",
       "passed": true,
-      "seconds": 1.79,
-      "detail": null
+      "seconds": 2.11
     },
     {
       "name": "repair Scoop partial/empty installation without metadata",
       "passed": true,
-      "seconds": 0.63,
-      "detail": null
+      "seconds": 0.67
     },
     {
       "name": "dependencies, script installer, independent and cycle detection",
       "passed": true,
-      "seconds": 2.21,
-      "detail": null
+      "seconds": 2.38
     },
     {
       "name": "Scoopfile export/import in both directions",
       "passed": true,
-      "seconds": 17.56,
-      "detail": null
+      "seconds": 19.11
     },
     {
       "name": "SQLite deleted manifest cleanup and bucket removal",
       "passed": true,
-      "seconds": 0.85,
-      "detail": null
+      "seconds": 0.88
     },
     {
       "name": "native without Scoop: multiple archives, extract_dir and extract_to",
       "passed": true,
-      "seconds": 0.16,
-      "detail": null
+      "seconds": 0.14
     },
     {
       "name": "native file persist: hardlink, rename, reinstall and purge",
       "passed": true,
-      "seconds": 0.19,
-      "detail": null
+      "seconds": 0.2
     },
     {
       "name": "native PowerShell shim and helper forwarding, arguments and exit 42",
       "passed": true,
-      "seconds": 1.91,
-      "detail": null
+      "seconds": 1.84
     },
     {
       "name": "native GUI shim subsystem and execution",
       "passed": true,
-      "seconds": 1.67,
-      "detail": null
+      "seconds": 1.97
     },
     {
       "name": "native Metalink follows resource and validates payload hash",
       "passed": true,
-      "seconds": 0.29,
-      "detail": null
+      "seconds": 0.29
     },
     {
       "name": "native local file URL: Unicode path, hash, install and execution",
       "passed": true,
-      "seconds": 1.05,
-      "detail": null
+      "seconds": 1.06
     },
     {
       "name": "native query output: valid JSON, NO_COLOR, aliases and current metadata",
       "passed": true,
-      "seconds": 0.11,
-      "detail": {
-        "redirected_json_valid": true,
-        "no_color_plain": true,
-        "case_alias_architecture_search": true,
-        "edits_visible_immediately": true
-      }
+      "seconds": 0.1
+    },
+    {
+      "name": "native manager entry point: no child startup, reset and changed target",
+      "passed": true,
+      "seconds": 1.39
     },
     {
       "name": "real jq: GitHub download, rsc install/execute -> Scoop uninstall",
       "passed": true,
-      "seconds": 3.72,
-      "detail": {
-        "package": "jq",
-        "version": "1.8.2",
-        "source": "C:\\Users\\lordw\\scoop\\buckets\\main\\bucket\\jq.json"
-      }
+      "seconds": 2.97
     },
     {
       "name": "real ripgrep ZIP: Scoop install -> rsc reset/execute/uninstall",
       "passed": true,
-      "seconds": 3.99,
-      "detail": {
-        "package": "ripgrep",
-        "version": "15.2.0",
-        "source": "C:\\Users\\lordw\\scoop\\buckets\\main\\bucket\\ripgrep.json"
-      }
+      "seconds": 3.74
     }
   ],
   "local_installation": {
@@ -257,5 +209,46 @@
     "command": "rsc --version",
     "sha256": "710c7b9bb8ca4063efa3296a0f3d4fe6b6d43efba74e64805aa17b9240531f75",
     "matches_release": true
+  },
+  "scoop_search_differential": {
+    "checks": [
+      {
+        "query": "git",
+        "matches": 80,
+        "same_rows_order_and_binaries": true
+      },
+      {
+        "query": "^git",
+        "matches": 57,
+        "same_rows_order_and_binaries": true
+      },
+      {
+        "query": "^git$",
+        "matches": 2,
+        "same_rows_order_and_binaries": true
+      },
+      {
+        "query": "gitignore",
+        "matches": 2,
+        "same_rows_order_and_binaries": true
+      },
+      {
+        "query": "git-biodiff",
+        "matches": 1,
+        "same_rows_order_and_binaries": true
+      },
+      {
+        "query": "jq",
+        "matches": 2,
+        "same_rows_order_and_binaries": true
+      },
+      {
+        "query": "^jq$",
+        "matches": 1,
+        "same_rows_order_and_binaries": true
+      }
+    ],
+    "passed": 7,
+    "failed": 0
   }
 }

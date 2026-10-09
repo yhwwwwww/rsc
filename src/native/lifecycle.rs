@@ -305,7 +305,28 @@ fn add_shim(c: &Config, name: &str, target: &Path, fixed: &str, global: bool) ->
     }
     let launcher = dir.join(format!("{name}.exe"));
     let source = std::env::current_exe()?;
-    if !launcher.is_file() || fs::metadata(&launcher)?.len() != fs::metadata(&source)?.len() {
+    // Only the verified manager binary, with no fixed arguments, may use a
+    // direct hard-linked entry point. Other shims retain normal forwarding.
+    let self_target = name.eq_ignore_ascii_case("rsc")
+        && fixed.trim().is_empty()
+        && target
+            .file_name()
+            .is_some_and(|n| n.eq_ignore_ascii_case("rsc.exe"))
+        && fs::metadata(target)?.len() == fs::metadata(&source)?.len()
+        && fs::read(target)? == fs::read(&source)?;
+    let direct = self_target
+        && (util::same_file(target, &launcher).unwrap_or(false)
+            || (|| -> Result<()> {
+                let staged = tempfile::tempdir_in(&dir)?;
+                let link = staged.path().join("rsc.exe");
+                fs::hard_link(target, &link)?;
+                fs::rename(link, &launcher)?;
+                Ok(())
+            })()
+            .is_ok());
+    if !direct
+        && (!launcher.is_file() || fs::metadata(&launcher)?.len() != fs::metadata(&source)?.len())
+    {
         windows::remove(&launcher)?;
         fs::copy(&source, &launcher)
             .with_context(|| format!("Cannot create shim {}", launcher.display()))?;

@@ -16,7 +16,7 @@ fn config(root: &Path) -> Config {
     c
 }
 #[test]
-fn parallel_search_preserves_names_aliases_architectures_and_order() {
+fn parallel_search_matches_scoop_names_top_level_bins_and_order() {
     let t = tempfile::tempdir().unwrap();
     let root = t.path();
     for i in 0..100 {
@@ -29,13 +29,10 @@ fn parallel_search_preserves_names_aliases_architectures_and_order() {
     put(
         root,
         "main/bucket/nested/alias.json",
-        json!({"version":"2","bin":[["app.exe","aliased"]],"architecture":{"arm64":{"bin":"arm-only.exe"}}}),
+        json!({"version":"2","bin":[["folder/app.exe","aliased"]],
+               "architecture":{"arm64":{"bin":"arm-only.exe"}}}),
     );
-    put(
-        root,
-        "extras/bucket/TOOL.json",
-        json!({"Version":"3","Description":"extras"}),
-    );
+    put(root, "extras/bucket/TOOL.json", json!({"Version":"3"}));
     let all = bucket::index(root).unwrap();
     let empty = bucket::search(root, "").unwrap();
     assert_eq!(all.packages.len(), 102);
@@ -43,38 +40,27 @@ fn parallel_search_preserves_names_aliases_architectures_and_order() {
         all.packages.iter().map(|p| &p.source).collect::<Vec<_>>(),
         empty.packages.iter().map(|p| &p.source).collect::<Vec<_>>()
     );
-    for input in ["^tool", "^aliased$", "^arm-only$", "(?i)^ALIAS$"] {
-        let re = query::matcher(input).unwrap();
-        let expected = all
+    assert_eq!(bucket::search(root, "^tool").unwrap().packages.len(), 101);
+    let alias = bucket::search(root, "aliased").unwrap();
+    assert_eq!(alias.packages[0].binaries, ["aliased"]);
+    let executable = bucket::search(root, "app").unwrap();
+    assert_eq!(executable.packages[0].binaries, ["app.exe"]);
+    assert!(
+        bucket::search(root, "arm-only")
+            .unwrap()
             .packages
-            .iter()
-            .filter(|p| {
-                query::matches(&re, &p.name).unwrap()
-                    || [
-                        rsc_core::manifest::Architecture::X64,
-                        rsc_core::manifest::Architecture::X86,
-                        rsc_core::manifest::Architecture::Arm64,
-                    ]
-                    .iter()
-                    .any(|a| {
-                        p.manifest
-                            .bins(*a)
-                            .iter()
-                            .any(|b| query::matches(&re, b).unwrap())
-                    })
-            })
-            .map(|p| &p.source)
-            .collect::<Vec<_>>();
-        let matched = bucket::search(root, input).unwrap();
-        assert_eq!(
-            expected,
-            matched
-                .packages
-                .iter()
-                .map(|p| &p.source)
-                .collect::<Vec<_>>()
-        );
-    }
+            .is_empty()
+    );
+    // Scoop's raw-content prefilter applies before binary matching.
+    assert!(
+        bucket::search(root, "^aliased$")
+            .unwrap()
+            .packages
+            .is_empty()
+    );
+    let named = bucket::search(root, "(?i)^ALIAS$").unwrap();
+    assert_eq!(named.packages.len(), 1);
+    assert!(named.packages[0].binaries.is_empty());
     assert!(bucket::search(root, "(").is_err());
 }
 #[test]
@@ -82,15 +68,12 @@ fn search_keeps_diagnostics_and_observes_edits_and_deletions() {
     let t = tempfile::tempdir().unwrap();
     put(t.path(), "main/bucket/a.json", json!({"version":"1"}));
     put(t.path(), "main/bucket/broken.json", json!(false));
-    let first = bucket::search(t.path(), "a").unwrap();
+    let first = bucket::search(t.path(), "a|broken").unwrap();
     assert_eq!(first.warnings.len(), 1);
-    assert_eq!(first.packages[0].manifest.version().unwrap(), "1");
+    assert_eq!(first.packages[0].version, "1");
     put(t.path(), "main/bucket/a.json", json!({"version":"2"}));
     assert_eq!(
-        bucket::search(t.path(), "a").unwrap().packages[0]
-            .manifest
-            .version()
-            .unwrap(),
+        bucket::search(t.path(), "a").unwrap().packages[0].version,
         "2"
     );
     fs::remove_file(t.path().join("main/bucket/a.json")).unwrap();
@@ -211,4 +194,90 @@ fn broken_removed_nightly_and_numeric_status_remain_distinct() {
     assert_eq!(states[1]["outdated"], false);
     assert_eq!(states[2]["removed"], true);
     assert_eq!(states[3]["failed"], true);
+}
+
+#[test]
+fn search_binary_matches_keep_filename_before_alias_and_decode_json() {
+    let re = query::matcher("git").unwrap();
+    let matches = rsc_core::search::matching_binaries(
+        &json!([
+            ["nested\\\\git.exe", "git-alias"],
+            ["other.exe", "mygit"],
+            "folder/git.cmd"
+        ]),
+        &re,
+    )
+    .unwrap();
+    assert_eq!(matches, ["git.exe", "mygit", "git.cmd"]);
+    let t = tempfile::tempdir().unwrap();
+    let p = t.path().join("main/bucket/encoded.json");
+    fs::create_dir_all(p.parent().unwrap()).unwrap();
+    fs::write(p, r#"{"version":"1","\u0062in":"git.exe"}"#).unwrap();
+    assert_eq!(
+        bucket::search(t.path(), "git").unwrap().packages[0].binaries,
+        ["git.exe"]
+    );
+}
+
+#[test]
+fn search_installed_markers_distinguish_bucket_scope_and_version() {
+    let t = tempfile::tempdir().unwrap();
+    put(
+        t.path(),
+        "buckets/main/bucket/foo.json",
+        json!({"version":"1.10"}),
+    );
+    put(
+        t.path(),
+        "buckets/extras/bucket/foo.json",
+        json!({"version":"2"}),
+    );
+    put(
+        t.path(),
+        "buckets/main/bucket/bar.json",
+        json!({"version":"1"}),
+    );
+    for (scope, version, held) in [("apps", "1.9", true), ("global/apps", "1.10", false)] {
+        put(
+            t.path(),
+            &format!("{scope}/foo/current/scoop-manifest.json"),
+            json!({"version":version}),
+        );
+        put(
+            t.path(),
+            &format!("{scope}/foo/current/scoop-install.json"),
+            json!({"bucket":"main","architecture":"64bit","hold":held}),
+        );
+    }
+    let report = rsc_core::search::local(&config(t.path()), "foo").unwrap();
+    let main = report.rows.iter().find(|r| r.bucket == "main").unwrap();
+    assert_eq!(main.installed, "global 1.10 | user 1.9");
+    assert_eq!(main.state, "global: current, user: outdated, held");
+    let other = report.rows.iter().find(|r| r.bucket == "extras").unwrap();
+    assert!(other.installed.is_empty() && other.state.is_empty());
+}
+
+#[test]
+fn search_version_states_cover_newer_unknown_nightly_and_broken() {
+    let make = |version: Option<&str>, error: Option<&str>| Installed {
+        name: "app".into(),
+        version: version.map(str::to_owned),
+        bucket: Some("main".into()),
+        architecture: None,
+        scope: "user".into(),
+        held: false,
+        path: std::path::PathBuf::new(),
+        state: "installed".into(),
+        error: error.map(str::to_owned),
+    };
+    let state = rsc_core::search::installation_state;
+    assert_eq!(state(&make(Some("1.9"), None), "1.10"), "outdated");
+    assert_eq!(state(&make(Some("1.0"), None), "1.0.0"), "current");
+    assert_eq!(state(&make(Some("2"), None), "1.10"), "newer");
+    assert_eq!(
+        state(&make(Some("nightly-20261009"), None), "nightly"),
+        "unknown (nightly)"
+    );
+    assert_eq!(state(&make(None, None), "1"), "broken");
+    assert_eq!(state(&make(Some("1"), Some("incomplete")), "1"), "broken");
 }

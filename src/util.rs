@@ -50,8 +50,12 @@ pub fn read_text(path: &Path) -> Result<String> {
         return String::from_utf16(&words)
             .with_context(|| format!("Invalid UTF-16: {}", path.display()));
     }
-    let bytes = bytes.strip_prefix(&[0xef, 0xbb, 0xbf]).unwrap_or(&bytes);
-    String::from_utf8(bytes.to_vec()).with_context(|| format!("Invalid UTF-8: {}", path.display()))
+    let bytes = if bytes.starts_with(&[0xef, 0xbb, 0xbf]) {
+        bytes[3..].to_vec()
+    } else {
+        bytes
+    };
+    String::from_utf8(bytes).with_context(|| format!("Invalid UTF-8: {}", path.display()))
 }
 
 pub fn read_json(path: &Path) -> Result<Value> {
@@ -188,4 +192,38 @@ pub fn canonical_path(path: &Path) -> Result<PathBuf> {
 
 pub fn remove_tree(root: &Path) -> Result<()> {
     crate::native::windows::remove(root)
+}
+
+/// File identity, including hard links; canonical paths alone cannot establish it.
+#[cfg(windows)]
+pub fn same_file(a: &Path, b: &Path) -> Result<bool> {
+    use std::os::windows::io::AsRawHandle;
+    use windows_sys::Win32::Storage::FileSystem::{
+        BY_HANDLE_FILE_INFORMATION, GetFileInformationByHandle,
+    };
+    let a = File::open(a)?;
+    let b = File::open(b)?;
+    let mut left: BY_HANDLE_FILE_INFORMATION = unsafe { std::mem::zeroed() };
+    let mut right: BY_HANDLE_FILE_INFORMATION = unsafe { std::mem::zeroed() };
+    if unsafe { GetFileInformationByHandle(a.as_raw_handle() as _, &mut left) } == 0
+        || unsafe { GetFileInformationByHandle(b.as_raw_handle() as _, &mut right) } == 0
+    {
+        return Err(std::io::Error::last_os_error().into());
+    }
+    Ok((
+        left.dwVolumeSerialNumber,
+        left.nFileIndexHigh,
+        left.nFileIndexLow,
+    ) == (
+        right.dwVolumeSerialNumber,
+        right.nFileIndexHigh,
+        right.nFileIndexLow,
+    ))
+}
+#[cfg(not(windows))]
+pub fn same_file(a: &Path, b: &Path) -> Result<bool> {
+    use std::os::unix::fs::MetadataExt;
+    let left = fs::metadata(a)?;
+    let right = fs::metadata(b)?;
+    Ok((left.dev(), left.ino()) == (right.dev(), right.ino()))
 }

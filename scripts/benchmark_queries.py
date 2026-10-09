@@ -83,9 +83,14 @@ for label, _, _ in cases:
     elif label == "status --local":
         # The new renderer labels the previously blank healthy state.
         same = before == after.replace(b"current", b"       ")
+    elif label.startswith("search "):
+        def identity(data):
+            rows = [line.split()[:3] for line in data.decode("utf-8").splitlines()]
+            return [row for row in rows if len(row) == 3 and row[0] != "Package"]
+        same = identity(before) == identity(after)
     else:
         same = before == after
     assert same, f"Query result changed: {label}"
-    report["verification"][label] = "same result; healthy status labels normalized"
+    report["verification"][label] = "same package identity; search installation columns and healthy status labels normalized"
 args.output.parent.mkdir(parents=True, exist_ok=True)
 args.output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")

@@ -10,15 +10,16 @@
 
 ## 最新结果
 
-性能优化发布版通过 **29 项 Rust 测试和 33 组 Windows 集成测试**，没有失败，其程序校验值保留在 [test-results.json](test-results.json) 中。
+原生发布版通过 **33 项 Rust 测试和 34 组 Windows 集成测试**，没有失败。另有七项只读查询与本机 Scoop 对照，结果行、顺序及匹配的二进制名称全部一致。测试程序校验值保留在 [test-results.json](test-results.json)。
 
-后续的 status 报告修复已构建，并在本机安装中人工核对：bucket 更新提示位于软件表格之前，这些提示不再产生 stderr 警告。本次核对不替代已完成的完整测试套件。[build-info.json](build-info.json) 标明更新后的文件及完整测试使用的基线。
+搜索夹具覆盖可执行文件/别名优先级、顶层与架构下的 bin、转义 JSON 键、清单修改/删除、bucket 来源、用户/全局范围、hold、版本一致/落后/更高，以及 nightly 版本未知状态。管理器直接入口还检查硬链接身份、自身 reset 和目标变化后的转发。
 
 ## 运行
 
 ```powershell
 .\scripts\test.ps1
 .\scripts\test.ps1 -SkipBuild -Phase native
+python tests/search_scoop.py
 ```
 
 `test.ps1` 执行 Rust 测试，编译自行编写的测试程序，再运行 Python 集成套件。隔离目录使用系统临时目录，包含空格和中文。测试保留本机 Scoop 配置及相关用户环境注册表值。

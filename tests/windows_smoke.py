@@ -652,7 +652,7 @@ def query_checks(s):
                  "extra":{"bool":True,"null":None,"number":-12.5,"escaped":chr(34)+" and 中文"}}
         manifest = bucket/"rsc-query-tool.json"
         write_json(manifest,value)
-        for query in ("^rsc-query-tool$", "^rsc-query-alias$", "^rsc-query-arm$"):
+        for query in ("^rsc-query-tool$", "rsc-query-alias"):
             result = s.run("search", query)
             assert "rsc-query-tool" in result.stdout, result.stdout
             assert "\x1b[" not in result.stdout, "ANSI escaped into redirected search output"
@@ -670,8 +670,36 @@ def query_checks(s):
         s.run("search","(",expected=1)
         # The query fixture has no registry, shim, or package installation side effects.
         return {"redirected_json_valid":True,"no_color_plain":True,
-                "case_alias_architecture_search":True,"edits_visible_immediately":True}
+                "scoop_top_level_alias_search":True,"edits_visible_immediately":True}
     s.case("native query output: valid JSON, NO_COLOR, aliases and current metadata",check)
+    def self_launcher():
+        app=s.root/"user/apps/rsc/0.1.0"
+        app.mkdir(parents=True,exist_ok=True)
+        target=app/"rsc.exe"
+        shutil.copy2(RSC,target)
+        write_json(app/"scoop-manifest.json",{"version":"0.1.0","bin":"rsc.exe"})
+        write_json(app/"scoop-install.json",{"architecture":"64bit","bucket":"rsc-query-fixture"})
+        s.run("reset","rsc")
+        launcher=s.root/"user/shims/rsc.exe"
+        assert os.path.samefile(target,launcher),"Manager launcher is not a hard link"
+        args=["search","^rsc-query-tool$"]
+        direct=s.run(*args)
+        launched=run_process([launcher,*args],s.env)
+        assert launched.returncode==0 and launched.stdout==direct.stdout,launched
+        reset=run_process([launcher,"reset","rsc"],s.env)
+        assert reset.returncode==0,reset.stdout+reset.stderr
+        assert os.path.samefile(target,launcher),"Self reset changed the file identity"
+        # A target from another build/location must still be forwarded to.
+        alternate=s.root/"other-target/rsc.exe"
+        alternate.parent.mkdir()
+        shutil.copy2(REPO/".test-lab/fixture.exe",alternate)
+        (launcher.with_suffix(".shim")).write_text(
+            'path = "'+str(alternate)+'"' + chr(10) + 'args = ' + chr(10),encoding="utf-8")
+        forwarded=run_process([launcher,"--exit-42"],s.env)
+        assert forwarded.returncode==42,forwarded.stdout+forwarded.stderr
+        s.run("reset","rsc")
+        return {"same_file_entry":True,"self_reset":True,"changed_target_forwarded":True}
+    s.case("native manager entry point: no child startup, reset and changed target",self_launcher)
 
 def main():
     parser=argparse.ArgumentParser()

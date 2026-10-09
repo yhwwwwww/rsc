@@ -31,6 +31,16 @@ pub fn dispatch() -> Result<Option<i32>> {
     if fs::canonicalize(&target)? == fs::canonicalize(&executable)? {
         bail!("Shim points to itself");
     }
+    // The manager's own entry point can share its executable file. File
+    // identity prevents an old launcher from bypassing a changed shim target.
+    if executable
+        .file_name()
+        .is_some_and(|n| n.eq_ignore_ascii_case("rsc.exe"))
+        && fixed.as_deref().is_none_or(|s| s.trim().is_empty())
+        && util::same_file(&target, &executable).unwrap_or(false)
+    {
+        return Ok(None);
+    }
     let extension = target
         .extension()
         .and_then(|s| s.to_str())

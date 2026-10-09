@@ -53,3 +53,5 @@ native 阶段移除参考管理器资源后测试 rsc。对照阶段调用本机
 ## 查询基准
 
 构建 release 程序后执行 `python scripts/benchmark_queries.py after hok`，可通过 `--before` 传入可选的旧程序。测量方式和原始记录见[性能](performance.zh-CN.md)。
+
+比较已安装命令的搜索速度时，执行 `.\scripts\benchmark_search.ps1`，使用五次预热和二十次运行，对比 rsc、Hok 默认/二进制搜索及 Scoop。只读核对 Scoop 搜索结果使用 `python tests/search_scoop.py`。

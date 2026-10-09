@@ -53,3 +53,5 @@ Tests restore the relevant user environment registry values and verify that the 
 ## Query benchmarks
 
 Run `python scripts/benchmark_queries.py after hok` after building the release executable. The optional previous executable can be passed with `--before`. See [Performance](performance.md) for methodology and raw records.
+
+For the installed search comparison, run `.\scripts\benchmark_search.ps1`. It uses five warmups and twenty runs of rsc, Hok's default and binary search, and Scoop. The read-only Scoop result comparison is `python tests/search_scoop.py`.

@@ -8,6 +8,8 @@ All package management behavior is implemented in Rust. No Scoop source tree, Po
 
 `rsc_core` is an `rlib` linked into `rsc.exe`. The executable also acts as the shim launcher. SQLite and the TLS implementation are linked into the program; Windows system libraries provide operating system integration.
 
+The manager's own shim may share the verified manager file through a hard link. File identity and the absence of fixed arguments allow direct CLI execution; changing the shim target falls back to normal forwarding.
+
 ## Modules
 
 | Module | Responsibility |
@@ -15,6 +17,7 @@ All package management behavior is implemented in Rust. No Scoop source tree, Po
 | `main`, `commands`, `output` | Direct commands, error states, tables and progress |
 | `config`, `layout` | Scoop settings, portable roots, user/global scope |
 | `bucket`, `database` | Git bucket index, compatible SQLite cache and history |
+| `search` | Parallel selective manifest parsing, Scoop binary matching and installed version markers |
 | `manifest`, `package` | Architecture fields, manifest validation, installation state |
 | `download`, `ftp` | Concurrent HTTP transfer, ranges, resume, cache, hashes, FTP |
 | `manager` | Dependency graph, locks, download-before-update, commit and recovery |

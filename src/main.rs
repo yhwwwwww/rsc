@@ -254,22 +254,9 @@ async fn run(cli: Cli, out: &Output) -> Result<bool> {
         }
         Command::Search { query } => {
             let query = query.unwrap_or_default();
-            let (rows, warnings) = if rsc_core::database::enabled(&config) {
-                let value = rsc_core::database::search(&config, &query)?;
-                (
-                    value
-                        .as_array()
-                        .context("Invalid cached search result")?
-                        .clone(),
-                    Vec::new(),
-                )
-            } else {
-                let index = bucket::search(&config.layout.buckets(), &query)?;
-                let rows = index.packages.into_iter()
-                    .map(|p|json!({"package":p.name,"bucket":p.bucket,"version":p.manifest.version().unwrap_or("?"),"description":p.manifest.description()})).collect::<Vec<_>>();
-                (rows, index.warnings)
-            };
-            out.warnings(&warnings);
+            let report = rsc_core::search::local(&config, &query)?;
+            let rows = report.rows;
+            out.warnings(&report.warnings);
             if rows.is_empty() {
                 let remote =
                     rsc_core::native::invoke(&config, "search_remote", json!({"query":query}))?;
@@ -295,14 +282,23 @@ async fn run(cli: Cli, out: &Output) -> Result<bool> {
                 bail!("No matches found");
             }
             out.table(
-                &["Package", "Version", "Bucket", "Description"],
+                &[
+                    "Package",
+                    "Version",
+                    "Bucket",
+                    "Installed",
+                    "State",
+                    "Binaries",
+                ],
                 rows.iter()
                     .map(|r| {
                         vec![
-                            string(r, "package"),
-                            string(r, "version"),
-                            string(r, "bucket"),
-                            string(r, "description"),
+                            r.package.clone(),
+                            r.version.clone(),
+                            r.bucket.clone(),
+                            r.installed.clone(),
+                            r.state.clone(),
+                            r.binaries.clone(),
                         ]
                     })
                     .collect(),

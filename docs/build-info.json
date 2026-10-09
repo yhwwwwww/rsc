@@ -1,12 +1,12 @@
 {
   "schema": 1,
-  "date": "2026-10-09T21:17:56.877127+08:00",
+  "date": "2026-10-09T21:52:40.393670+08:00",
   "version": "0.1.0",
   "profile": "release",
   "target": "x86_64-pc-windows-gnu",
   "rustc": "1.99.0 (b940084d7 2026-09-28)",
-  "bytes": 9687552,
-  "sha256": "767a99b0898aac2a11f153d8de2c691213a32a6aa3f3340cc966e911091ab031",
+  "bytes": 9734144,
+  "sha256": "bcf57b204e3e1456162398cc08aed4dabfcc9c1d5d1d5f07ad77bcbac71cd610",
   "artifact": "dist/rsc.exe",
   "core_library": "statically linked rlib",
   "sqlite": "bundled",
@@ -32,6 +32,6 @@
   "runtime_manager_script_expansion": false,
   "tests": "test-results.json",
   "query_benchmark": "query-benchmark.json",
-  "tests_binary_sha256": "efc1e2549a526ab06ccc67294b050bbbb250f805f4a4aecee13aea4acbc7348a",
-  "validation_note": "Full suite and performance samples refer to the previous optimization release. The later status report fix was built and manually inspected."
+  "tests_binary_sha256": "bcf57b204e3e1456162398cc08aed4dabfcc9c1d5d1d5f07ad77bcbac71cd610",
+  "search_benchmark": "search-benchmark.json"
 }

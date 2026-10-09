@@ -139,27 +139,11 @@ pub fn manifest_paths(bucket: &Path) -> Result<Vec<PathBuf>> {
 pub fn index(root: &Path) -> Result<Index> {
     collect(root, |_| Ok(true))
 }
-/// Read each manifest once, concurrently, and retain only actual search matches.
-pub fn search(root: &Path, query: &str) -> Result<Index> {
-    let re = crate::native::query::matcher(query)?;
-    collect(root, |p| {
-        if crate::native::query::matches(&re, &p.name)? {
-            return Ok(true);
-        }
-        for a in [
-            crate::manifest::Architecture::X64,
-            crate::manifest::Architecture::X86,
-            crate::manifest::Architecture::Arm64,
-        ] {
-            for bin in p.manifest.bins(a) {
-                if crate::native::query::matches(&re, &bin)? {
-                    return Ok(true);
-                }
-            }
-        }
-        Ok(false)
-    })
+/// Scoop-compatible name and top-level binary search.
+pub fn search(root: &Path, query: &str) -> Result<crate::search::SearchIndex> {
+    crate::search::scan(root, query)
 }
+
 fn collect(root: &Path, filter: impl Fn(&Resolved) -> Result<bool> + Sync) -> Result<Index> {
     let mut paths = Vec::new();
     for bucket in inventory(root)? {

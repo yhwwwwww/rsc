@@ -16,7 +16,7 @@ rsc is an independent implementation. It contains no Scoop source code and does 
 - Download multiple files concurrently, split reliable HTTP ranges, resume interrupted segments, and verify hashes.
 - Create executable shims, directory junctions, persistent data links, Start Menu shortcuts, environment entries, and PowerShell module links through Rust and Windows APIs.
 - Show semantic colors for names, versions, healthy states, warnings and errors; highlight JSON manifests internally.
-- Search and inspect local package status with native parallel queries. See [Performance](docs/performance.md).
+- Search with Scoop-compatible name/binary matching, matched binary names, and source-aware installed/version markers. Native parallel queries keep overhead low. See [Commands](docs/cli.md) and [Performance](docs/performance.md).
 - Show readable tables, progress, speed, and useful failure details.
 
 This is an early release. Tested behavior and remaining validation work are described in [Compatibility](docs/compatibility.md) and [Testing](docs/testing.md).

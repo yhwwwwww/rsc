@@ -8,6 +8,8 @@
 
 `rsc_core` 是静态链接进 `rsc.exe` 的 `rlib`。同一个程序也充当 shim 启动器。SQLite 和 TLS 实现链接在程序内，操作系统集成使用 Windows 系统库。
 
+管理器自身的 shim 可以通过硬链接共用经校验的管理器文件。文件身份一致且没有固定参数时直接执行 CLI；shim 目标变化后恢复正常转发。
+
 ## 模块
 
 | 模块 | 职责 |
@@ -15,6 +17,7 @@
 | `main`、`commands`、`output` | 直接命令、错误状态、表格和进度 |
 | `config`、`layout` | Scoop 配置、便携目录、用户及全局范围 |
 | `bucket`、`database` | Git bucket 索引、兼容 SQLite 缓存和历史 |
+| `search` | 并行读取必要的清单字段、Scoop 二进制匹配及安装版本标记 |
 | `manifest`、`package` | 架构字段、清单校验、安装状态 |
 | `download`、`ftp` | HTTP 并发、分段、恢复、缓存、哈希、FTP |
 | `manager` | 依赖图、锁、更新前下载、提交和恢复 |
