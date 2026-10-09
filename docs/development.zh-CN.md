@@ -49,3 +49,7 @@ native 阶段移除参考管理器资源后测试 rsc。对照阶段调用本机
 - 发布的干净历史排除已弃用的原版脚本实现。
 
 [架构](architecture.zh-CN.md) · [兼容状态](compatibility.zh-CN.md) · [测试](testing.zh-CN.md)
+
+## 查询基准
+
+构建 release 程序后执行 `python scripts/benchmark_queries.py after hok`，可通过 `--before` 传入可选的旧程序。测量方式和原始记录见[性能](performance.zh-CN.md)。

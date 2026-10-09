@@ -57,13 +57,22 @@ impl PackageSpec {
 }
 
 pub fn buckets(root: &Path) -> Result<Vec<Bucket>> {
+    let mut result = inventory(root)?;
+    for b in &mut result {
+        b.manifests = manifest_paths(&b.path)?.len();
+        b.remote = remote(&b.path);
+    }
+    Ok(result)
+}
+/// Bucket order without opening every manifest or Git configuration.
+pub(crate) fn inventory(root: &Path) -> Result<Vec<Bucket>> {
     if !root.try_exists()? {
         return Ok(Vec::new());
     }
     let mut result = Vec::new();
     for entry in fs::read_dir(root)? {
         let entry = entry?;
-        if !entry.path().is_dir() {
+        if !entry.file_type()?.is_dir() && !entry.path().is_dir() {
             continue;
         }
         let name = entry.file_name().to_string_lossy().into_owned();
@@ -71,8 +80,8 @@ pub fn buckets(root: &Path) -> Result<Vec<Bucket>> {
             continue;
         }
         let path = entry.path();
-        let manifests = manifest_paths(&path)?.len();
-        let remote = remote(&path);
+        let manifests = 0;
+        let remote = None;
         result.push(Bucket {
             name,
             path,
@@ -128,26 +137,136 @@ pub fn manifest_paths(bucket: &Path) -> Result<Vec<PathBuf>> {
     Ok(files)
 }
 pub fn index(root: &Path) -> Result<Index> {
+    collect(root, |_| Ok(true))
+}
+/// Read each manifest once, concurrently, and retain only actual search matches.
+pub fn search(root: &Path, query: &str) -> Result<Index> {
+    let re = crate::native::query::matcher(query)?;
+    collect(root, |p| {
+        if crate::native::query::matches(&re, &p.name)? {
+            return Ok(true);
+        }
+        for a in [
+            crate::manifest::Architecture::X64,
+            crate::manifest::Architecture::X86,
+            crate::manifest::Architecture::Arm64,
+        ] {
+            for bin in p.manifest.bins(a) {
+                if crate::native::query::matches(&re, &bin)? {
+                    return Ok(true);
+                }
+            }
+        }
+        Ok(false)
+    })
+}
+fn collect(root: &Path, filter: impl Fn(&Resolved) -> Result<bool> + Sync) -> Result<Index> {
+    let mut paths = Vec::new();
+    for bucket in inventory(root)? {
+        for path in manifest_paths(&bucket.path)? {
+            paths.push((bucket.name.clone(), path));
+        }
+    }
+    let results = util::parallel_map(
+        &paths,
+        |(bucket, path)| -> Result<(Option<Resolved>, Option<String>)> {
+            let manifest = match Manifest::read(path) {
+                Ok(m) => m,
+                Err(e) => return Ok((None, Some(format!("{}: {e:#}", path.display())))),
+            };
+            let p = Resolved {
+                name: path
+                    .file_stem()
+                    .context("Manifest has no filename")?
+                    .to_string_lossy()
+                    .into_owned(),
+                bucket: Some(bucket.clone()),
+                source: path.display().to_string(),
+                manifest,
+            };
+            if filter(&p)? {
+                Ok((Some(p), None))
+            } else {
+                Ok((None, None))
+            }
+        },
+    );
     let mut packages = Vec::new();
     let mut warnings = Vec::new();
-    for bucket in buckets(root)? {
-        for path in manifest_paths(&bucket.path)? {
-            match Manifest::read(&path) {
-                Ok(manifest) => packages.push(Resolved {
-                    name: path
-                        .file_stem()
-                        .context("Manifest has no filename")?
-                        .to_string_lossy()
-                        .into_owned(),
-                    bucket: Some(bucket.name.clone()),
-                    source: path.display().to_string(),
-                    manifest,
-                }),
-                Err(error) => warnings.push(format!("{}: {error:#}", path.display())),
-            }
+    for result in results {
+        let (package, warning) = result?;
+        if let Some(p) = package {
+            packages.push(p);
+        }
+        if let Some(w) = warning {
+            warnings.push(w);
         }
     }
     Ok(Index { packages, warnings })
+}
+/// One directory catalogue per command, reused for every installed package.
+pub(crate) struct Resolver {
+    files: std::collections::HashMap<String, Vec<(String, PathBuf)>>,
+}
+impl Resolver {
+    pub(crate) fn new(root: &Path) -> Result<Self> {
+        let mut files = std::collections::HashMap::<String, Vec<(String, PathBuf)>>::new();
+        for b in inventory(root)? {
+            for path in manifest_paths(&b.path)? {
+                if let Some(name) = path.file_stem() {
+                    files
+                        .entry(name.to_string_lossy().to_ascii_lowercase())
+                        .or_default()
+                        .push((b.name.clone(), path));
+                }
+            }
+        }
+        Ok(Self { files })
+    }
+    pub(crate) fn resolve(&self, input: &str) -> Result<Resolved> {
+        let spec = PackageSpec::parse(input)?;
+        let candidates = self
+            .files
+            .get(&spec.name.to_ascii_lowercase())
+            .into_iter()
+            .flatten()
+            .filter(|(b, _)| {
+                spec.bucket
+                    .as_ref()
+                    .is_none_or(|name| name.eq_ignore_ascii_case(b))
+            })
+            .collect::<Vec<_>>();
+        let (b, path) = candidates.first().with_context(|| {
+            format!(
+                "Package {input} was not found. Check rsc bucket or provide a manifest file / URL."
+            )
+        })?;
+        if candidates.len() > 1 {
+            crate::presentation::warning(&format!(
+                "multiple buckets contain {input}; using {b}/{}",
+                spec.name
+            ));
+        }
+        let manifest = Manifest::read(path)?;
+        if let Some(version) = spec.version {
+            if manifest.version()? != version {
+                bail!(
+                    "Requested {version}; local manifest is {}",
+                    manifest.version()?
+                );
+            }
+        }
+        Ok(Resolved {
+            name: path
+                .file_stem()
+                .context("Manifest has no filename")?
+                .to_string_lossy()
+                .into_owned(),
+            bucket: Some(b.clone()),
+            source: path.display().to_string(),
+            manifest,
+        })
+    }
 }
 pub fn resolve(root: &Path, input: &str) -> Result<Resolved> {
     if Path::new(input).is_file() {
@@ -165,55 +284,9 @@ pub fn resolve(root: &Path, input: &str) -> Result<Resolved> {
             manifest: Manifest::read(&path)?,
         });
     }
-    let spec = PackageSpec::parse(input)?;
-    let mut matches = Vec::new();
-    for bucket in buckets(root)? {
-        if spec
-            .bucket
-            .as_ref()
-            .is_some_and(|b| !b.eq_ignore_ascii_case(&bucket.name))
-        {
-            continue;
-        }
-        for path in manifest_paths(&bucket.path)? {
-            if path
-                .file_stem()
-                .is_some_and(|n| n.to_string_lossy().eq_ignore_ascii_case(&spec.name))
-            {
-                matches.push(Resolved {
-                    name: path
-                        .file_stem()
-                        .context("Manifest has no filename")?
-                        .to_string_lossy()
-                        .into_owned(),
-                    bucket: Some(bucket.name.clone()),
-                    source: path.display().to_string(),
-                    manifest: Manifest::read(&path)?,
-                });
-            }
-        }
-    }
-    if matches.is_empty() {
-        bail!("Package {input} was not found. Check rsc bucket or provide a manifest file / URL.");
-    }
-    if matches.len() > 1 {
-        eprintln!(
-            "warning: multiple buckets contain {input}; using {}/{}",
-            matches[0].bucket.as_deref().unwrap_or(""),
-            matches[0].name
-        );
-    }
-    let package = matches.remove(0);
-    if let Some(version) = spec.version {
-        if package.manifest.version()? != version {
-            bail!(
-                "Requested {version}; local manifest is {}. Historical manifest lookup is not implemented yet.",
-                package.manifest.version()?
-            );
-        }
-    }
-    Ok(package)
+    Resolver::new(root)?.resolve(input)
 }
+
 fn remote(path: &Path) -> Option<String> {
     let git = path.join(".git");
     let config = if git.is_file() {

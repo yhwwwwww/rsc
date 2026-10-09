@@ -1,0 +1,363 @@
+{
+  "schema": 1,
+  "date": "2026-10-09T20:59:06.370255+08:00",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "logical_processors": 16,
+  "runs": 7,
+  "warmup": 1,
+  "scope": "same local Scoop roots; process creation and captured output included; warm filesystem cache",
+  "hok_search": "-B includes executable aliases; rsc checks names and binaries by default",
+  "remote_checks": "excluded; Hok has no status command",
+  "programs": {
+    "before": {
+      "version": "rsc 0.1.0",
+      "sha256": "710c7b9bb8ca4063efa3296a0f3d4fe6b6d43efba74e64805aa17b9240531f75",
+      "bytes": 9611776
+    },
+    "after": {
+      "version": "rsc 0.1.0",
+      "sha256": "efc1e2549a526ab06ccc67294b050bbbb250f805f4a4aecee13aea4acbc7348a",
+      "bytes": 9674240
+    },
+    "hok": {
+      "version": "hok 0.1.0-beta.7",
+      "sha256": "619cd2ee5a409769f1b4acfa5ffcf95239078c507f091c68802a36e053355b7b",
+      "bytes": 5673472
+    }
+  },
+  "results": [
+    {
+      "command": "search jq",
+      "program": "before",
+      "median_ms": 575.852,
+      "min_ms": 554.6,
+      "samples_ms": [
+        585.347,
+        554.6,
+        595.002,
+        558.812,
+        579.777,
+        575.852,
+        565.877
+      ],
+      "output_bytes": 182
+    },
+    {
+      "command": "search jq",
+      "program": "after",
+      "median_ms": 89.984,
+      "min_ms": 86.851,
+      "samples_ms": [
+        100.178,
+        86.914,
+        89.984,
+        86.851,
+        86.929,
+        97.136,
+        95.583
+      ],
+      "output_bytes": 182
+    },
+    {
+      "command": "search jq",
+      "program": "hok",
+      "median_ms": 97.221,
+      "min_ms": 90.669,
+      "samples_ms": [
+        90.669,
+        93.783,
+        92.569,
+        97.221,
+        117.057,
+        110.623,
+        111.909
+      ],
+      "output_bytes": 62
+    },
+    {
+      "command": "search ^git",
+      "program": "before",
+      "median_ms": 631.129,
+      "min_ms": 612.498,
+      "samples_ms": [
+        659.097,
+        625.456,
+        617.511,
+        664.991,
+        631.129,
+        612.498,
+        636.078
+      ],
+      "output_bytes": 7164
+    },
+    {
+      "command": "search ^git",
+      "program": "after",
+      "median_ms": 109.012,
+      "min_ms": 107.292,
+      "samples_ms": [
+        108.349,
+        109.012,
+        107.292,
+        108.079,
+        109.126,
+        114.528,
+        123.51
+      ],
+      "output_bytes": 7164
+    },
+    {
+      "command": "search ^git",
+      "program": "hok",
+      "median_ms": 115.375,
+      "min_ms": 110.132,
+      "samples_ms": [
+        110.132,
+        114.608,
+        115.375,
+        126.088,
+        120.469,
+        114.331,
+        117.069
+      ],
+      "output_bytes": 3554
+    },
+    {
+      "command": "list",
+      "program": "before",
+      "median_ms": 34.454,
+      "min_ms": 31.945,
+      "samples_ms": [
+        37.281,
+        37.929,
+        36.186,
+        34.454,
+        33.662,
+        33.061,
+        31.945
+      ],
+      "output_bytes": 2669
+    },
+    {
+      "command": "list",
+      "program": "after",
+      "median_ms": 29.966,
+      "min_ms": 28.56,
+      "samples_ms": [
+        28.56,
+        29.263,
+        32.675,
+        29.615,
+        32.412,
+        29.966,
+        31.621
+      ],
+      "output_bytes": 2669
+    },
+    {
+      "command": "list",
+      "program": "hok",
+      "median_ms": 36.163,
+      "min_ms": 30.452,
+      "samples_ms": [
+        30.452,
+        31.602,
+        36.163,
+        33.203,
+        37.133,
+        36.998,
+        37.724
+      ],
+      "output_bytes": 828
+    },
+    {
+      "command": "cat jq",
+      "program": "before",
+      "median_ms": 49.741,
+      "min_ms": 42.856,
+      "samples_ms": [
+        51.888,
+        51.489,
+        48.097,
+        51.898,
+        49.741,
+        44.906,
+        42.856
+      ],
+      "output_bytes": 1451
+    },
+    {
+      "command": "cat jq",
+      "program": "after",
+      "median_ms": 29.646,
+      "min_ms": 28.036,
+      "samples_ms": [
+        32.401,
+        30.516,
+        29.646,
+        28.938,
+        30.427,
+        28.45,
+        28.036
+      ],
+      "output_bytes": 1451
+    },
+    {
+      "command": "cat jq",
+      "program": "hok",
+      "median_ms": 40.971,
+      "min_ms": 36.861,
+      "samples_ms": [
+        36.861,
+        37.256,
+        40.971,
+        40.636,
+        42.394,
+        41.796,
+        41.656
+      ],
+      "output_bytes": 1730
+    },
+    {
+      "command": "status --local",
+      "program": "before",
+      "median_ms": 510.603,
+      "min_ms": 480.427,
+      "samples_ms": [
+        516.634,
+        494.682,
+        500.631,
+        511.95,
+        510.603,
+        564.478,
+        480.427
+      ],
+      "output_bytes": 2949
+    },
+    {
+      "command": "status --local",
+      "program": "after",
+      "median_ms": 43.971,
+      "min_ms": 43.64,
+      "samples_ms": [
+        43.64,
+        43.758,
+        43.971,
+        44.059,
+        43.772,
+        46.559,
+        44.513
+      ],
+      "output_bytes": 2949
+    }
+  ],
+  "verification": {
+    "search jq": "same result; healthy status labels normalized",
+    "search ^git": "same result; healthy status labels normalized",
+    "list": "same result; healthy status labels normalized",
+    "cat jq": "same result; healthy status labels normalized",
+    "status --local": "same result; healthy status labels normalized"
+  },
+  "dataset": {
+    "buckets": {
+      "main": 1710,
+      "extras": 2476,
+      "nirsoft": 291,
+      "nerd-fonts": 376,
+      "dorado": 336
+    },
+    "total_manifests": 5189,
+    "use_sqlite_cache": false
+  },
+  "remote_status": {
+    "command": "status",
+    "runs": 3,
+    "scope": "includes live Git fetch; network timing is variable",
+    "results": [
+      {
+        "program": "before",
+        "median_ms": 5110.021,
+        "samples_ms": [
+          7319.491,
+          4680.397,
+          5110.021
+        ],
+        "warnings": "warning: Bucket main has updates; run rsc update\nwarning: Bucket extras has updates; run rsc update\nwarning: Bucket dorado has updates; run rsc update\n"
+      },
+      {
+        "program": "after",
+        "sha256": "efc1e2549a526ab06ccc67294b050bbbb250f805f4a4aecee13aea4acbc7348a",
+        "median_ms": 986.322,
+        "samples_ms": [
+          996.653,
+          986.322,
+          958.725
+        ],
+        "warnings": "warning: Bucket main has updates; run rsc update\nwarning: Bucket extras has updates; run rsc update\nwarning: Bucket dorado has updates; run rsc update\n"
+      }
+    ]
+  },
+  "installed_launchers": {
+    "runs": 7,
+    "warmup": 1,
+    "scope": "installed Scoop shims including launcher and child process startup",
+    "results": [
+      {
+        "command": "search jq",
+        "program": "rsc",
+        "median_ms": 102.308,
+        "samples_ms": [
+          104.701,
+          101.244,
+          102.308,
+          96.313,
+          96.981,
+          108.676,
+          108.014
+        ]
+      },
+      {
+        "command": "search jq",
+        "program": "hok",
+        "median_ms": 105.433,
+        "samples_ms": [
+          107.048,
+          105.433,
+          111.931,
+          107.448,
+          104.867,
+          100.502,
+          101.35
+        ]
+      },
+      {
+        "command": "list",
+        "program": "rsc",
+        "median_ms": 44.648,
+        "samples_ms": [
+          45.586,
+          45.418,
+          44.827,
+          43.514,
+          44.648,
+          43.15,
+          42.433
+        ]
+      },
+      {
+        "command": "list",
+        "program": "hok",
+        "median_ms": 41.524,
+        "samples_ms": [
+          41.636,
+          40.744,
+          42.303,
+          40.821,
+          41.15,
+          42.388,
+          41.524
+        ]
+      }
+    ]
+  }
+}

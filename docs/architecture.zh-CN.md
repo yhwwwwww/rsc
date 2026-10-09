@@ -56,3 +56,7 @@
 Windows 认证代理使用 WinHTTP，FTP 使用 WinINet。ZIP 解压和 Metalink 解析内置，其他格式按包要求调用解压辅助工具。
 
 参见[兼容状态](compatibility.zh-CN.md)和[开发说明](development.zh-CN.md)。
+
+## 查询与输出
+
+查询共用保序且限制并发数量的读取器，以及仅在单次命令内使用的文件名索引。状态检查重复使用安装信息和依赖名称。`presentation` 模块提供语义颜色与内置 JSON 分词器，根据完整内容判断重要程度，再按可识别 ANSI 的显示宽度裁剪，窄终端不会改变状态颜色。重定向及 `NO_COLOR` 保持纯文本。见[性能](performance.zh-CN.md)。

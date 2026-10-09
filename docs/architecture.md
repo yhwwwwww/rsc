@@ -56,3 +56,7 @@ File concurrency, host limits and HTTP segmentation are independent. Range respo
 Windows-authenticated proxies use WinHTTP; FTP uses WinINet. ZIP extraction and Metalink parsing are internal. Other formats use package helper tools when required.
 
 See [Compatibility](compatibility.md) and [Development](development.md).
+
+## Queries and presentation
+
+Queries share an ordered, bounded parallel reader and a per-command filename catalogue. Status reuses installed metadata and dependency names. The `presentation` module supplies semantic colors and an internal JSON tokenizer; priority is determined from the full value, then styled text is clipped with ANSI-aware widths. Redirected streams and `NO_COLOR` stay plain. See [Performance](performance.md).

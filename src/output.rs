@@ -1,6 +1,7 @@
 use console::style;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use rsc_core::download::{Event, Reporter};
+use rsc_core::presentation::{self, Tone, paint};
 use serde::Serialize;
 use serde_json::json;
 use std::{
@@ -21,7 +22,7 @@ impl Output {
         Self {
             json,
             command,
-            color: io::stdout().is_terminal() && std::env::var_os("NO_COLOR").is_none(),
+            color: presentation::stdout_color(),
         }
     }
     pub fn data(
@@ -40,7 +41,7 @@ impl Output {
     }
     pub fn table(&self, headers: &[&str], rows: Vec<Vec<String>>) {
         if rows.is_empty() {
-            println!("No results.");
+            println!("{}", paint("No results.", Tone::Secondary, self.color));
             return;
         }
         let columns = headers.len();
@@ -68,17 +69,29 @@ impl Output {
                 widths[index] -= 1;
             }
         }
-        let render = |row: Vec<String>| -> String {
+        let render = |row: &[String], body: bool| -> String {
+            let attention = row.iter().any(|v| v.contains("outdated"));
             row.iter()
                 .enumerate()
                 .map(|(i, value)| {
                     let clean = console::strip_ansi_codes(value).replace(['\r', '\n', '\t'], " ");
-                    let clipped = clip(&clean, widths[i]);
-                    let pad = widths[i].saturating_sub(console::measure_text_width(&clipped));
-                    if i + 1 == columns {
-                        clipped
+                    let text = if body {
+                        clipped_cell(
+                            headers[i],
+                            &clean,
+                            widths[i],
+                            self.color,
+                            attention,
+                            self.command,
+                        )
                     } else {
-                        format!("{clipped}{}", " ".repeat(pad))
+                        clip(&clean, widths[i])
+                    };
+                    let pad = widths[i].saturating_sub(console::measure_text_width(&text));
+                    if i + 1 == columns {
+                        text
+                    } else {
+                        format!("{text}{}", " ".repeat(pad))
                     }
                 })
                 .collect::<Vec<_>>()
@@ -86,13 +99,17 @@ impl Output {
         };
         println!(
             "{}",
-            style(render(headers.iter().map(|s| s.to_string()).collect()))
-                .bold()
-                .cyan()
-                .force_styling(self.color)
+            style(render(
+                &headers.iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+                false
+            ))
+            .bold()
+            .cyan()
+            .force_styling(self.color)
         );
-        for row in rows {
-            println!("{}", render(row));
+        let mut stdout = io::BufWriter::new(io::stdout().lock());
+        for row in &rows {
+            let _ = writeln!(stdout, "{}", render(row, true));
         }
     }
     pub fn details(&self, fields: Vec<(String, String)>) {
@@ -142,15 +159,16 @@ impl Output {
                     " ".repeat(label_width.saturating_sub(console::measure_text_width(&label)))
                 );
                 println!(
-                    "{}  {line}",
-                    style(padded).cyan().bold().force_styling(self.color)
+                    "{}  {}",
+                    style(padded).cyan().bold().force_styling(self.color),
+                    cell(&key, &line, self.color, false, self.command)
                 );
             }
         }
     }
     pub fn warnings(&self, warnings: &[String]) {
         for warning in warnings {
-            eprintln!("warning: {warning}");
+            presentation::warning(warning);
         }
     }
     pub fn error(&self, error: &anyhow::Error) {
@@ -158,14 +176,66 @@ impl Output {
             let _ = self.data(&serde_json::Value::Null, &[], &[format!("{error:#}")]);
         } else {
             eprintln!(
-                "{} {error:#}",
-                style("error:").red().bold().force_styling(
-                    io::stderr().is_terminal() && std::env::var_os("NO_COLOR").is_none()
+                "{} {}",
+                paint("error:", Tone::Error, presentation::stderr_color()),
+                paint(
+                    &format!("{error:#}"),
+                    Tone::Error,
+                    presentation::stderr_color()
                 )
             );
         }
     }
 }
+/// Determine priority from the complete value before truncating styled text.
+fn clipped_cell(
+    header: &str,
+    value: &str,
+    width: usize,
+    color: bool,
+    attention: bool,
+    command: &str,
+) -> String {
+    console::truncate_str(&cell(header, value, color, attention, command), width, "…").into_owned()
+}
+/// Semantic styling is independent of display width; truncation understands ANSI.
+fn cell(header: &str, value: &str, color: bool, attention: bool, command: &str) -> String {
+    if value.is_empty() || value == "-" || value == "?" {
+        return paint(value, Tone::Secondary, color);
+    }
+    let key = header.to_ascii_lowercase();
+    let tone = match key.as_str() {
+        "result" if !value.contains("failed") && !value.contains("error") => Tone::Success,
+        "state" | "result" | "status" | "info" if command != "info" => {
+            return value
+                .split(", ")
+                .map(|s| paint(s, presentation::state_tone(s), color))
+                .collect::<Vec<_>>()
+                .join(", ");
+        }
+        "package" | "package / bucket" | "name" | "app" | "command" | "setting" | "cache file" => {
+            Tone::Primary
+        }
+        "available" | "latest version" if attention => Tone::Warning,
+        "available" | "latest version" => Tone::Success,
+        "version" | "installed" | "installed version" | "size" | "files" | "manifests" => {
+            Tone::Version
+        }
+        "dependencies" if command == "status" => Tone::Error,
+        "notes" | "warning" => Tone::Warning,
+        "hash" => presentation::state_tone(value),
+        "value" if serde_json::from_str::<serde_json::Value>(value).is_ok() => {
+            return presentation::json(value, color);
+        }
+        "bucket" | "source" | "scope" | "arch" | "architecture" | "path" | "repository" => {
+            Tone::Secondary
+        }
+        "homepage" | "url" => Tone::Primary,
+        _ => Tone::Normal,
+    };
+    paint(value, tone, color)
+}
+
 fn clip(text: &str, width: usize) -> String {
     if console::measure_text_width(text) <= width {
         return text.to_owned();
@@ -239,8 +309,16 @@ impl Progress {
                     ..
                 } => eprintln!(
                     "  {} {} ({})",
-                    if cached { "Cached" } else { "Saved" },
-                    path.display(),
+                    paint(
+                        if cached { "Cached" } else { "Saved" },
+                        Tone::Success,
+                        presentation::stderr_color()
+                    ),
+                    paint(
+                        &path.display().to_string(),
+                        Tone::Secondary,
+                        presentation::stderr_color()
+                    ),
                     size(bytes)
                 ),
                 _ => {}
@@ -285,7 +363,10 @@ impl Progress {
                 }
             }
             Event::Message { text, .. } => {
-                let _ = self.multi.println(format!("{label}: {text}"));
+                let _ = self.multi.println(format!(
+                    "{}: {text}",
+                    paint(&label, Tone::Primary, presentation::stderr_color())
+                ));
             }
             Event::Finished {
                 id,
@@ -341,4 +422,53 @@ pub struct CacheEntry {
     pub name: String,
     pub path: PathBuf,
     pub bytes: u64,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn table_cells_have_semantic_colors_and_plain_mode() {
+        let cases = [
+            ("Package", "jq", "\x1b[36m"),
+            ("Version", "1.8.1", "\x1b[35m"),
+            ("State", "outdated", "\x1b[33m"),
+            ("State", "broken", "\x1b[31m"),
+            ("State", "installed", "\x1b[32m"),
+            ("Bucket", "main", "\x1b[2m"),
+            ("Available", "2.0", "\x1b[33m"),
+            ("Dependencies", "missing", "\x1b[31m"),
+        ];
+        for (key, text, code) in cases {
+            let colored = cell(key, text, true, true, "status");
+            assert!(colored.contains(code), "{key}: {colored:?}");
+            assert_eq!(console::strip_ansi_codes(&colored), text);
+            assert_eq!(cell(key, text, false, true, "status"), text);
+        }
+    }
+    #[test]
+    fn unicode_clipping_and_mixed_state_colors() {
+        assert_eq!(clip("中文内容", 5), "中文…");
+        let s = cell("State", "failed, hold, outdated", true, false, "status");
+        assert_eq!(console::strip_ansi_codes(&s), "failed, hold, outdated");
+        assert!(s.contains("\x1b[31m") && s.contains("\x1b[33m"));
+        assert_eq!(console::measure_text_width(&s), 22);
+    }
+    #[test]
+    fn clipped_states_keep_the_original_priority() {
+        for (value, code) in [
+            ("outdated", "\x1b[33m"),
+            ("failed", "\x1b[31m"),
+            ("installed", "\x1b[32m"),
+        ] {
+            let colored = clipped_cell("State", value, 5, true, false, "status");
+            assert!(colored.contains(code), "{value}: {colored:?}");
+            assert_eq!(console::measure_text_width(&colored), 5);
+            assert_eq!(console::strip_ansi_codes(&colored), clip(value, 5));
+            assert_eq!(
+                clipped_cell("State", value, 5, false, false, "status"),
+                clip(value, 5)
+            );
+        }
+    }
 }

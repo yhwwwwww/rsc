@@ -5,3 +5,5 @@
 *.ilk
 
 /.test-lab/
+__pycache__/
+*.pyc

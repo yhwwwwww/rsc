@@ -49,3 +49,7 @@ Tests restore the relevant user environment registry values and verify that the 
 - Publish only clean history that excludes the discarded upstream-script implementation.
 
 [Architecture](architecture.md) · [Compatibility](compatibility.md) · [Testing](testing.md)
+
+## Query benchmarks
+
+Run `python scripts/benchmark_queries.py after hok` after building the release executable. The optional previous executable can be passed with `--before`. See [Performance](performance.md) for methodology and raw records.

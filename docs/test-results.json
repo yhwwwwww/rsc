@@ -1,31 +1,38 @@
 {
   "schema": 1,
-  "date": "2026-10-09T03:37:53+08:00",
+  "date": "2026-10-09T21:01:41.010414+08:00",
   "implementation": "independent native Rust",
   "platform": "Windows-11-10.0.26200-SP0",
-  "binary_sha256": "710c7b9bb8ca4063efa3296a0f3d4fe6b6d43efba74e64805aa17b9240531f75",
+  "binary_sha256": "efc1e2549a526ab06ccc67294b050bbbb250f805f4a4aecee13aea4acbc7348a",
   "scoop_reference": {
     "version": "v0.6.0",
     "commit": "e6aa3b366bdee8ed138c1e0f7b85192ebdd35d0f"
   },
   "rust_tests": {
-    "passed": 19,
+    "passed": 29,
     "failed": 0
   },
   "integration_tests": {
-    "passed": 32,
+    "passed": 33,
     "failed": 0
   },
   "checks": {
     "live_scoop_config_unchanged": true,
     "user_environment_restored": true,
-    "standalone_without_scoop_resources": true
+    "standalone_without_scoop_resources": true,
+    "query_result_equivalence": true,
+    "terminal_json_highlight_checked": true,
+    "redirected_json_valid": true,
+    "no_color_plain": true,
+    "clipped_states_keep_priority": true,
+    "installed_binary_and_shim_match": true,
+    "installed_queries_verified": true
   },
   "cases": [
     {
       "name": "parallel download, SHA256, cache reuse and force",
       "passed": true,
-      "seconds": 0.75,
+      "seconds": 0.51,
       "detail": {
         "bytes": 8388608,
         "peak_parallel_requests": 4
@@ -34,43 +41,43 @@
     {
       "name": "network ignore",
       "passed": true,
-      "seconds": 0.37,
+      "seconds": 0.38,
       "detail": null
     },
     {
       "name": "network wrong",
       "passed": true,
-      "seconds": 0.39,
+      "seconds": 0.35,
       "detail": null
     },
     {
       "name": "network retry",
       "passed": true,
-      "seconds": 0.21,
+      "seconds": 0.24,
       "detail": null
     },
     {
       "name": "network disconnect",
       "passed": true,
-      "seconds": 1.19,
+      "seconds": 1.24,
       "detail": null
     },
     {
       "name": "hash mismatch leaves no published cache",
       "passed": true,
-      "seconds": 0.18,
+      "seconds": 0.19,
       "detail": null
     },
     {
       "name": "private_hosts and manifest cookies",
       "passed": true,
-      "seconds": 0.21,
+      "seconds": 0.24,
       "detail": null
     },
     {
       "name": "interrupted segmented download resumes",
       "passed": true,
-      "seconds": 4.29,
+      "seconds": 4.21,
       "detail": {
         "resumed_offsets": [
           2121728,
@@ -83,127 +90,127 @@
     {
       "name": "cache regex removal and --all",
       "passed": true,
-      "seconds": 0.06,
+      "seconds": 0.05,
       "detail": null
     },
     {
       "name": "bucket add from Git",
       "passed": true,
-      "seconds": 0.38,
-      "detail": "CompletedProcess(args=['D:\\\\Documents\\\\My Documents\\\\Proj\\\\rsc\\\\dist\\\\rsc.exe', 'bucket', 'add', 'rsc-test', 'C:\\\\Users\\\\lordw\\\\AppData\\\\Local\\\\Temp\\\\rsc-native-tests-s0jpqb4j\\\\隔离 Scoop\\\\remote.git'], returncode=0, stdout='Package / bucket  Version  Scope  Result\\nrsc-test          -        -      added\\n', stderr='')"
+      "seconds": 0.4,
+      "detail": "CompletedProcess(args=['D:\\\\Documents\\\\My Documents\\\\Proj\\\\rsc\\\\dist\\\\rsc.exe', 'bucket', 'add', 'rsc-test', 'C:\\\\Users\\\\lordw\\\\AppData\\\\Local\\\\Temp\\\\rsc-native-tests-vvwouehl\\\\隔离 Scoop\\\\remote.git'], returncode=0, stdout='Package / bucket  Version  Scope  Result\\nrsc-test          -        -      added\\n', stderr='')"
     },
     {
       "name": "rsc install: hooks, persist, env, shortcuts, modules; Scoop list",
       "passed": true,
-      "seconds": 3.18,
+      "seconds": 3.4,
       "detail": null
     },
     {
       "name": "exe shim: fixed args, spaces, quotes, empty, Unicode, stdin, exit 42",
       "passed": true,
-      "seconds": 0.46,
+      "seconds": 0.66,
       "detail": null
     },
     {
       "name": "query commands, custom aliases and shim inspection",
       "passed": true,
-      "seconds": 1.03,
+      "seconds": 1.11,
       "detail": null
     },
     {
       "name": "SQLite initialization and binary search",
       "passed": true,
-      "seconds": 0.07,
+      "seconds": 0.05,
       "detail": null
     },
     {
       "name": "hold, Git update, preserve data, reset, force no-cache, cleanup, SQL history",
       "passed": true,
-      "seconds": 13.12,
+      "seconds": 10.95,
       "detail": null
     },
     {
       "name": "Scoop uninstalls rsc-installed package and preserves persist",
       "passed": true,
-      "seconds": 1.35,
+      "seconds": 1.64,
       "detail": null
     },
     {
       "name": "Scoop install -> rsc reset/uninstall --purge",
       "passed": true,
-      "seconds": 4.84,
+      "seconds": 5.24,
       "detail": null
     },
     {
       "name": "pinned version from SQLite and Git history",
       "passed": true,
-      "seconds": 4.63,
+      "seconds": 4.57,
       "detail": null
     },
     {
       "name": "no_junction installation and Scoop reset",
       "passed": true,
-      "seconds": 7.32,
+      "seconds": 6.7,
       "detail": null
     },
     {
       "name": "failed hook -> marked broken -> retry repairs installation",
       "passed": true,
-      "seconds": 1.82,
+      "seconds": 1.79,
       "detail": null
     },
     {
       "name": "repair Scoop partial/empty installation without metadata",
       "passed": true,
-      "seconds": 0.64,
+      "seconds": 0.63,
       "detail": null
     },
     {
       "name": "dependencies, script installer, independent and cycle detection",
       "passed": true,
-      "seconds": 2.13,
+      "seconds": 2.21,
       "detail": null
     },
     {
       "name": "Scoopfile export/import in both directions",
       "passed": true,
-      "seconds": 19.44,
+      "seconds": 17.56,
       "detail": null
     },
     {
       "name": "SQLite deleted manifest cleanup and bucket removal",
       "passed": true,
-      "seconds": 1.2,
+      "seconds": 0.85,
       "detail": null
     },
     {
       "name": "native without Scoop: multiple archives, extract_dir and extract_to",
       "passed": true,
-      "seconds": 0.18,
+      "seconds": 0.16,
       "detail": null
     },
     {
       "name": "native file persist: hardlink, rename, reinstall and purge",
       "passed": true,
-      "seconds": 0.24,
+      "seconds": 0.19,
       "detail": null
     },
     {
       "name": "native PowerShell shim and helper forwarding, arguments and exit 42",
       "passed": true,
-      "seconds": 1.95,
+      "seconds": 1.91,
       "detail": null
     },
     {
       "name": "native GUI shim subsystem and execution",
       "passed": true,
-      "seconds": 1.5,
+      "seconds": 1.67,
       "detail": null
     },
     {
       "name": "native Metalink follows resource and validates payload hash",
       "passed": true,
-      "seconds": 0.28,
+      "seconds": 0.29,
       "detail": null
     },
     {
@@ -213,23 +220,34 @@
       "detail": null
     },
     {
+      "name": "native query output: valid JSON, NO_COLOR, aliases and current metadata",
+      "passed": true,
+      "seconds": 0.11,
+      "detail": {
+        "redirected_json_valid": true,
+        "no_color_plain": true,
+        "case_alias_architecture_search": true,
+        "edits_visible_immediately": true
+      }
+    },
+    {
       "name": "real jq: GitHub download, rsc install/execute -> Scoop uninstall",
       "passed": true,
-      "seconds": 3.2,
+      "seconds": 3.72,
       "detail": {
         "package": "jq",
         "version": "1.8.2",
-        "source": "[USERPROFILE]\\scoop\\buckets\\main\\bucket\\jq.json"
+        "source": "C:\\Users\\lordw\\scoop\\buckets\\main\\bucket\\jq.json"
       }
     },
     {
       "name": "real ripgrep ZIP: Scoop install -> rsc reset/execute/uninstall",
       "passed": true,
-      "seconds": 4.05,
+      "seconds": 3.99,
       "detail": {
         "package": "ripgrep",
         "version": "15.2.0",
-        "source": "[USERPROFILE]\\scoop\\buckets\\main\\bucket\\ripgrep.json"
+        "source": "C:\\Users\\lordw\\scoop\\buckets\\main\\bucket\\ripgrep.json"
       }
     }
   ],

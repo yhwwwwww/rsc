@@ -15,6 +15,8 @@ rsc 是独立实现，项目不包含 Scoop 源码，也不会展开或运行 Sc
 - 管理 Git bucket、固定版本、依赖和 Scoopfile。
 - 多文件并发下载；可靠支持 HTTP Range 时分段下载，支持中断恢复和哈希校验。
 - 通过 Rust 和 Windows API 创建 shim、目录链接、持久数据链接、开始菜单快捷方式、环境变量及 PowerShell 模块链接。
+- 为名称、版本、正常状态、警告和错误提供语义颜色，内置 JSON 清单语法高亮。
+- 使用原生并行查询搜索软件及检查本地状态，见[性能](docs/performance.zh-CN.md)。
 - 使用更清晰的表格、下载进度、速度和错误信息。
 
 项目仍处于早期阶段。已验证的行为与待验收项见[兼容状态](docs/compatibility.zh-CN.md)和[测试](docs/testing.zh-CN.md)。
@@ -58,6 +60,7 @@ rsc 使用 Scoop 的配置和目录结构，能发现本机已有的 Scoop 安�
 - [兼容状态](docs/compatibility.zh-CN.md)
 - [构建与开发](docs/development.zh-CN.md)
 - [测试与结果](docs/testing.zh-CN.md)
+- [查询性能](docs/performance.zh-CN.md)
 
 英文文档为主版本，每份文档都有简体中文版本。机器可读的构建和测试记录共用一份文件。
 

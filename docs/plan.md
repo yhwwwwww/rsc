@@ -45,3 +45,7 @@ An implementation path is not equivalent to verified behavior. [Compatibility](c
 ## Documentation
 
 [Architecture](architecture.md) · [Commands](cli.md) · [Development](development.md) · [Tests](testing.md)
+
+## Output and query optimization
+
+Implemented semantic body colors, built-in JSON highlighting, bounded parallel manifest reads and shared status metadata. Result-equivalence checks and timings are recorded in [Performance](performance.md). Current regression results are in [Testing](testing.md).

@@ -642,6 +642,37 @@ def native_checks(s):
     s.case("native local file URL: Unicode path, hash, install and execution",local_file)
 
 
+
+def query_checks(s):
+    def check():
+        bucket = s.root/"user/buckets/rsc-query-fixture/bucket"
+        value = {"version":"1.0","description":"中文 query fixture",
+                 "bin":[["tool.exe","rsc-query-alias"]],
+                 "architecture":{"arm64":{"bin":"rsc-query-arm.exe"}},
+                 "extra":{"bool":True,"null":None,"number":-12.5,"escaped":chr(34)+" and 中文"}}
+        manifest = bucket/"rsc-query-tool.json"
+        write_json(manifest,value)
+        for query in ("^rsc-query-tool$", "^rsc-query-alias$", "^rsc-query-arm$"):
+            result = s.run("search", query)
+            assert "rsc-query-tool" in result.stdout, result.stdout
+            assert "\x1b[" not in result.stdout, "ANSI escaped into redirected search output"
+        for no_color in (False,True):
+            env=s.env.copy()
+            if no_color: env["NO_COLOR"]="1"
+            else: env.pop("NO_COLOR",None)
+            result=run_process([RSC,"cat",manifest],env)
+            assert result.returncode==0,result.stderr
+            assert "\x1b[" not in result.stdout,"ANSI escaped into redirected JSON"
+            assert json.loads(result.stdout)==value
+        value["version"]="2.0"
+        write_json(manifest,value)
+        assert "2.0" in s.run("search","^rsc-query-tool$").stdout
+        s.run("search","(",expected=1)
+        # The query fixture has no registry, shim, or package installation side effects.
+        return {"redirected_json_valid":True,"no_color_plain":True,
+                "case_alias_architecture_search":True,"edits_visible_immediately":True}
+    s.case("native query output: valid JSON, NO_COLOR, aliases and current metadata",check)
+
 def main():
     parser=argparse.ArgumentParser()
     parser.add_argument("--phase",choices=["network","lifecycle","real","native","all"],default="all")
@@ -669,6 +700,7 @@ def main():
                 lifecycle_checks(s)
             if args.phase in ("native","all"):
                 native_checks(s)
+                query_checks(s)
             if args.phase in ("real","all"):
                 real_package_checks(s)
         assert sha(config.read_bytes())==config_hash,"Real Scoop config changed"

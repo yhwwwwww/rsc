@@ -10,7 +10,7 @@ The independent Rust version is tested on Windows with a GNU x64 toolchain. The 
 
 ## Latest result
 
-The native release passed **19 Rust tests and 32 Windows integration groups**, with no failures. The locally installed program was replaced with this release and its checksum matches the distribution artifact.
+The native release passed **29 Rust tests and 33 Windows integration groups**, with no failures. The locally installed program was replaced with this release and its checksum matches the distribution artifact.
 
 ## Run
 
@@ -45,3 +45,7 @@ Authenticated proxies, FTP, FossHub/private GitHub releases, MSI/Inno/WiX, uncom
 The published records contain the current native results, not the previous wrapper implementation's results. Machine-readable records are shared by both document languages.
 
 [Development](development.md) · [Architecture](architecture.md)
+
+## Query and color regression
+
+The suite also checks semantic table colors, JSON token colors, Unicode/escape preservation, plain redirected JSON, NO_COLOR, ordered parallel queries and live manifest edits. A real Windows terminal was checked with colors enabled. Performance samples and result-equivalence checks are documented in [Performance](performance.md).

@@ -79,12 +79,21 @@ pub fn invoke(c: &Config, action: &str, d: Value) -> Result<Value> {
                     bail!("Manifest viewer failed")
                 }
             } else {
-                println!("{text}");
+                println!(
+                    "{}",
+                    crate::presentation::json(&text, crate::presentation::stdout_color())
+                );
             }
             Ok(Value::Null)
         }
         "confirm_install" => {
-            println!("{}", serde_json::to_string_pretty(&d["manifest"])?);
+            println!(
+                "{}",
+                crate::presentation::json(
+                    &serde_json::to_string_pretty(&d["manifest"])?,
+                    crate::presentation::stdout_color()
+                )
+            );
             eprint!("Install this manifest? [y/N] ");
             use std::io::Write;
             std::io::stderr().flush()?;

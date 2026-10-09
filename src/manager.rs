@@ -188,7 +188,7 @@ pub async fn install(
     report: Reporter,
 ) -> Result<Outcome> {
     require_admin(config, options.global)?;
-    if bucket::buckets(&config.layout.buckets())?.is_empty()
+    if bucket::inventory(&config.layout.buckets())?.is_empty()
         && inputs.iter().any(|s| PackageSpec::parse(s).is_ok())
     {
         add_bucket(config, "main", None)?;
@@ -724,35 +724,35 @@ pub fn sync(config: &Config) -> Result<Outcome> {
 pub fn statuses(config: &Config, local: bool) -> Result<Outcome> {
     let mut outcome = Outcome::default();
     if !local {
-        for b in bucket::buckets(&config.layout.buckets())? {
-            if b.path.join(".git").exists() {
-                let check = (|| -> Result<bool> {
-                    git(config, Some(&b.path), &["fetch", "-q", "origin"])?;
-                    Ok(!git(
-                        config,
-                        Some(&b.path),
-                        &["log", "HEAD..@{upstream}", "--oneline"],
-                    )?
-                    .is_empty())
-                })();
-                match check {
-                    Ok(true) => outcome
-                        .warnings
-                        .push(format!("Bucket {} has updates; run rsc update", b.name)),
-                    Err(e) => outcome.warnings.push(format!("{}: {e:#}", b.name)),
-                    _ => {}
-                }
+        let buckets = bucket::inventory(&config.layout.buckets())?
+            .into_iter()
+            .filter(|b| b.path.join(".git").exists())
+            .collect::<Vec<_>>();
+        let checks = util::parallel_map(&buckets, |b| {
+            let check = (|| -> Result<bool> {
+                git(config, Some(&b.path), &["fetch", "-q", "origin"])?;
+                Ok(!git(
+                    config,
+                    Some(&b.path),
+                    &["log", "HEAD..@{upstream}", "--oneline"],
+                )?
+                .is_empty())
+            })();
+            (b.name.clone(), check)
+        });
+        for (name, check) in checks {
+            match check {
+                Ok(true) => outcome
+                    .warnings
+                    .push(format!("Bucket {name} has updates; run rsc update")),
+                Err(e) => outcome.warnings.push(format!("{name}: {e:#}")),
+                _ => {}
             }
         }
     }
     let installed = package::list(&config.layout, false)?;
-    let value = native::invoke(
-        config,
-        "status",
-        json!({"apps":installed.iter().map(|p|json!({"name":p.name,"global":p.scope=="global"})).collect::<Vec<_>>()}),
-    )?;
-    let states = value.as_array().context("Invalid status result")?;
-    for (p, status) in installed.iter().zip(states) {
+    let states = native::query::statuses(config, &installed)?;
+    for (p, status) in installed.iter().zip(&states) {
         let mut row = status.clone();
         row["package"] = json!(p.name);
         row["scope"] = json!(p.scope);

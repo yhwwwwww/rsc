@@ -354,7 +354,9 @@ fn autoupdate(c: &Config, m: &Manifest, version: &str) -> Result<Manifest> {
     manifest(&raw)
 }
 pub fn compare(a: &str, b: &str) -> std::cmp::Ordering {
-    let re = regex::Regex::new(r"\d+|[A-Za-z]+").unwrap();
+    static RE: std::sync::LazyLock<regex::Regex> =
+        std::sync::LazyLock::new(|| regex::Regex::new(r"\d+|[A-Za-z]+").unwrap());
+    let re = &*RE;
     let aa = re.find_iter(a).map(|x| x.as_str()).collect::<Vec<_>>();
     let bb = re.find_iter(b).map(|x| x.as_str()).collect::<Vec<_>>();
     for i in 0..aa.len().max(bb.len()) {
@@ -371,6 +373,69 @@ pub fn compare(a: &str, b: &str) -> std::cmp::Ordering {
         }
     }
     std::cmp::Ordering::Equal
+}
+/// Reuse installation metadata and bucket filenames for the whole status operation.
+pub fn statuses(c: &Config, installed: &[package::Installed]) -> Result<Vec<Value>> {
+    statuses_for(c, installed, installed)
+}
+fn statuses_for(
+    c: &Config,
+    installed: &[package::Installed],
+    selected: &[package::Installed],
+) -> Result<Vec<Value>> {
+    let resolver = bucket::Resolver::new(&c.layout.buckets())?;
+    let names = installed
+        .iter()
+        .map(|p| p.name.to_ascii_lowercase())
+        .collect::<std::collections::HashSet<_>>();
+    let mut rows = Vec::with_capacity(selected.len());
+    for p in selected {
+        let mut row = json!({"installed":true,"failed":p.error.is_some(),"hold":p.held,
+            "removed":false,"outdated":false,"missing_deps":[],"version":p.version});
+        let source = p
+            .bucket
+            .as_ref()
+            .map(|b| format!("{b}/{}", p.name))
+            .unwrap_or_else(|| p.name.clone());
+        if let Ok(latest) = resolver.resolve(&source) {
+            let m = latest.manifest;
+            let v = m.version()?;
+            row["latest_version"] = json!(v);
+            row["outdated"] = json!(
+                p.version.as_deref() != Some(v)
+                    && (v == "nightly"
+                        || p.version
+                            .as_ref()
+                            .is_some_and(|old| compare(v, old).is_gt()))
+            );
+            let a = Architecture::parse(p.architecture.as_deref().unwrap_or("64bit"))?;
+            row["missing_deps"] = json!(
+                m.strings("depends", a)?
+                    .into_iter()
+                    .filter(|s| PackageSpec::parse(s)
+                        .is_ok_and(|s| !names.contains(&s.name.to_ascii_lowercase())))
+                    .collect::<Vec<_>>()
+            );
+        } else {
+            let info = util::read_json(&package::metadata_file(
+                &p.path,
+                "scoop-install.json",
+                "install.json",
+            ))
+            .unwrap_or(Value::Null);
+            if let Some(source) = info["url"].as_str() {
+                if let Ok(latest) = resolve(c, &json!({"input":source})) {
+                    let v = latest["manifest"]["version"].as_str().unwrap_or("");
+                    row["latest_version"] = json!(v);
+                    row["outdated"] = json!(p.version.as_deref() != Some(v));
+                }
+            } else {
+                row["removed"] = json!(true);
+            }
+        }
+        rows.push(row);
+    }
+    Ok(rows)
 }
 pub fn invoke(c: &Config, action: &str, d: &Value) -> Result<Value> {
     match action {
@@ -430,62 +495,33 @@ pub fn invoke(c: &Config, action: &str, d: &Value) -> Result<Value> {
         }
         "status" => {
             let installed = package::list(&c.layout, false)?;
-            let mut rows = Vec::new();
-            for item in d["apps"].as_array().into_iter().flatten() {
-                let name = item["name"].as_str().unwrap_or("");
-                let global = item["global"].as_bool().unwrap_or(false);
-                let p = installed
-                    .iter()
-                    .find(|p| p.name.eq_ignore_ascii_case(name) && (p.scope == "global") == global);
-                let mut row = json!({"installed":p.is_some(),"failed":p.is_some_and(|p|p.error.is_some()),"hold":p.is_some_and(|p|p.held),"removed":false,"outdated":false,"missing_deps":[]});
-                if let Some(p) = p {
-                    row["version"] = json!(p.version);
-                    let source = p
-                        .bucket
-                        .as_ref()
-                        .map(|b| format!("{b}/{name}"))
-                        .unwrap_or_else(|| name.into());
-                    let latest = resolve(c, &json!({"input":source}));
-                    if let Ok(latest) = latest {
-                        let m = manifest(&latest["manifest"])?;
-                        let v = m.version()?;
-                        row["latest_version"] = json!(v);
-                        row["outdated"] = json!(
-                            p.version.as_deref() != Some(v)
-                                && (v == "nightly"
-                                    || p.version
-                                        .as_ref()
-                                        .is_some_and(|old| compare(v, old).is_gt()))
-                        );
-                        let a = Architecture::parse(p.architecture.as_deref().unwrap_or("64bit"))?;
-                        row["missing_deps"] = json!(
-                            m.strings("depends", a)?
-                                .into_iter()
-                                .filter(|s| PackageSpec::parse(s).is_ok_and(|s| !installed
-                                    .iter()
-                                    .any(|p| p.name.eq_ignore_ascii_case(&s.name))))
-                                .collect::<Vec<_>>()
-                        );
-                    } else {
-                        let info = util::read_json(&package::metadata_file(
-                            &p.path,
-                            "scoop-install.json",
-                            "install.json",
-                        ))
-                        .unwrap_or(Value::Null);
-                        if let Some(source) = info["url"].as_str() {
-                            if let Ok(latest) = resolve(c, &json!({"input":source})) {
-                                let v = latest["manifest"]["version"].as_str().unwrap_or("");
-                                row["latest_version"] = json!(v);
-                                row["outdated"] = json!(p.version.as_deref() != Some(v));
-                            }
-                        } else {
-                            row["removed"] = json!(true)
-                        }
-                    }
-                }
-                rows.push(row)
-            }
+            let requested = d["apps"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .map(|item| {
+                    (
+                        item["name"].as_str().unwrap_or("").to_ascii_lowercase(),
+                        item["global"].as_bool().unwrap_or(false),
+                    )
+                })
+                .collect::<std::collections::HashSet<_>>();
+            let selected = installed
+                .iter()
+                .filter(|p| requested.contains(&(p.name.to_ascii_lowercase(), p.scope == "global")))
+                .cloned()
+                .collect::<Vec<_>>();
+            let states = statuses_for(c, &installed, &selected)?;
+            let lookup = selected
+                .iter()
+                .enumerate()
+                .map(|(i, p)| ((p.name.to_ascii_lowercase(), p.scope == "global"), i))
+                .collect::<std::collections::HashMap<_, _>>();
+            let rows = d["apps"].as_array().into_iter().flatten().map(|item| {
+                let key = (item["name"].as_str().unwrap_or("").to_ascii_lowercase(), item["global"].as_bool().unwrap_or(false));
+                lookup.get(&key).map(|i|states[*i].clone()).unwrap_or_else(||
+                    json!({"installed":false,"failed":false,"hold":false,"removed":false,"outdated":false,"missing_deps":[]}))
+            }).collect::<Vec<_>>();
             Ok(json!(rows))
         }
         "info" => {
@@ -517,7 +553,7 @@ pub fn invoke(c: &Config, action: &str, d: &Value) -> Result<Value> {
         }
         "search_remote" => {
             let re = matcher(d["query"].as_str().unwrap_or(""))?;
-            let buckets = bucket::buckets(&c.layout.buckets())?;
+            let buckets = bucket::inventory(&c.layout.buckets())?;
             let mut rows = Vec::new();
             let mut limited = false;
             for &(name, repo) in super::known::BUCKETS {

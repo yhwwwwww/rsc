@@ -132,8 +132,7 @@ impl Command {
         }
     }
 }
-#[tokio::main]
-async fn main() -> ExitCode {
+fn main() -> ExitCode {
     match rsc_core::shim::dispatch() {
         Ok(Some(code)) => std::process::exit(code),
         Ok(None) => {}
@@ -144,7 +143,24 @@ async fn main() -> ExitCode {
     }
     let cli = Cli::parse();
     let out = Output::new(false, cli.command.name());
-    match run(cli, &out).await {
+    let execute = || -> Result<bool> {
+        // Queries and shim dispatch do not need an eagerly created worker pool.
+        let mut runtime = match &cli.command {
+            Command::Download { .. }
+            | Command::Manage(
+                commands::Command::Install { .. }
+                | commands::Command::Update { .. }
+                | commands::Command::Fetch { .. },
+            ) => {
+                let mut b = tokio::runtime::Builder::new_multi_thread();
+                b.worker_threads(4);
+                b
+            }
+            _ => tokio::runtime::Builder::new_current_thread(),
+        };
+        runtime.enable_all().build()?.block_on(run(cli, &out))
+    };
+    match execute() {
         Ok(true) => ExitCode::SUCCESS,
         Ok(false) => ExitCode::FAILURE,
         Err(error) => {
@@ -171,7 +187,9 @@ async fn run(cli: Cli, out: &Output) -> Result<bool> {
         match Architecture::parse(&value) {
             Ok(arch) => arch,
             Err(_) => {
-                eprintln!("warning: invalid default_architecture; using the machine architecture");
+                rsc_core::presentation::warning(
+                    "invalid default_architecture; using the machine architecture",
+                );
                 Architecture::native()
             }
         }
@@ -246,17 +264,9 @@ async fn run(cli: Cli, out: &Output) -> Result<bool> {
                     Vec::new(),
                 )
             } else {
-                let index = bucket::index(&config.layout.buckets())?;
-                let matching = rsc_core::native::invoke(
-                    &config,
-                    "search_match",
-                    json!({
-                        "query":query,"items":index.packages.iter().map(|p|json!({"name":p.name,"manifest":p.manifest.raw})).collect::<Vec<_>>()
-                    }),
-                )?;
-                let rows=index.packages.into_iter().enumerate()
-                    .filter(|(i,_)|matching.get(*i).and_then(Value::as_bool)==Some(true))
-                    .map(|(_,p)|json!({"package":p.name,"bucket":p.bucket,"version":p.manifest.version().unwrap_or("?"),"description":p.manifest.description()})).collect::<Vec<_>>();
+                let index = bucket::search(&config.layout.buckets(), &query)?;
+                let rows = index.packages.into_iter()
+                    .map(|p|json!({"package":p.name,"bucket":p.bucket,"version":p.manifest.version().unwrap_or("?"),"description":p.manifest.description()})).collect::<Vec<_>>();
                 (rows, index.warnings)
             };
             out.warnings(&warnings);
@@ -355,7 +365,14 @@ async fn run(cli: Cli, out: &Output) -> Result<bool> {
             if key.as_deref() == Some("rm") {
                 let key = value.context("Configuration name is required after rm")?;
                 config.set(&key, None)?;
-                println!("Removed {key}");
+                println!(
+                    "{}",
+                    rsc_core::presentation::paint(
+                        &format!("Removed {key}"),
+                        rsc_core::presentation::Tone::Success,
+                        rsc_core::presentation::stdout_color()
+                    )
+                );
                 return Ok(true);
             }
             if let Some(value) = value {
@@ -364,7 +381,19 @@ async fn run(cli: Cli, out: &Output) -> Result<bool> {
                 if out.json {
                     out.data(&json!({"key":key,"file":file,"changed":true}), &[], &[])?;
                 } else {
-                    println!("Saved {key} in {}", file.display());
+                    println!(
+                        "{} {}",
+                        rsc_core::presentation::paint(
+                            &format!("Saved {key} in"),
+                            rsc_core::presentation::Tone::Success,
+                            rsc_core::presentation::stdout_color()
+                        ),
+                        rsc_core::presentation::paint(
+                            &file.display().to_string(),
+                            rsc_core::presentation::Tone::Secondary,
+                            rsc_core::presentation::stdout_color()
+                        )
+                    );
                 }
             } else {
                 let settings = config.settings();
@@ -602,7 +631,7 @@ async fn run(cli: Cli, out: &Output) -> Result<bool> {
                         .collect(),
                 );
                 for failure in &failures {
-                    eprintln!("error: {failure}");
+                    out.error(&anyhow::anyhow!("{failure}"));
                 }
                 eprintln!(
                     "{} file(s) available; {} failure(s)",
@@ -630,7 +659,14 @@ async fn run(cli: Cli, out: &Output) -> Result<bool> {
                     packages.join("|")
                 };
                 let rows = rsc_core::manager::clean_cache(&config, &pattern, None)?;
-                println!("Removed {} cache file(s)", rows.len());
+                println!(
+                    "{}",
+                    rsc_core::presentation::paint(
+                        &format!("Removed {} cache file(s)", rows.len()),
+                        rsc_core::presentation::Tone::Success,
+                        rsc_core::presentation::stdout_color()
+                    )
+                );
             } else {
                 if let Some(action) = action.filter(|s| s != "show") {
                     packages.insert(0, action);

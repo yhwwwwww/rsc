@@ -8,6 +8,27 @@ use std::{
 };
 use tempfile::NamedTempFile;
 
+/// Bounded, ordered parallel work. No cache, stale data, or unbounded thread creation.
+pub(crate) fn parallel_map<T: Sync, U: Send>(items: &[T], f: impl Fn(&T) -> U + Sync) -> Vec<U> {
+    let workers = std::thread::available_parallelism()
+        .map_or(2, |n| n.get())
+        .min(16)
+        .min(items.len());
+    if workers < 2 {
+        return items.iter().map(f).collect();
+    }
+    std::thread::scope(|scope| {
+        let f = &f;
+        let handles = items
+            .chunks(items.len().div_ceil(workers))
+            .map(|chunk| scope.spawn(move || chunk.iter().map(f).collect::<Vec<_>>()))
+            .collect::<Vec<_>>();
+        handles
+            .into_iter()
+            .flat_map(|h| h.join().expect("query worker panicked"))
+            .collect()
+    })
+}
 pub fn read_text(path: &Path) -> Result<String> {
     let bytes = fs::read(path).with_context(|| format!("Cannot read {}", path.display()))?;
     if bytes.starts_with(&[0xff, 0xfe]) || bytes.starts_with(&[0xfe, 0xff]) {

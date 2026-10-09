@@ -1,17 +1,19 @@
 {
   "schema": 1,
-  "date": "2026-10-09T03:37:53+08:00",
+  "date": "2026-10-09T21:01:41.010414+08:00",
   "version": "0.1.0",
   "profile": "release",
   "target": "x86_64-pc-windows-gnu",
   "rustc": "1.99.0 (b940084d7 2026-09-28)",
-  "bytes": 9611776,
-  "sha256": "710c7b9bb8ca4063efa3296a0f3d4fe6b6d43efba74e64805aa17b9240531f75",
+  "bytes": 9674240,
+  "sha256": "efc1e2549a526ab06ccc67294b050bbbb250f805f4a4aecee13aea4acbc7348a",
   "artifact": "dist/rsc.exe",
   "core_library": "statically linked rlib",
   "sqlite": "bundled",
   "tls": "linked rustls implementation",
   "imported_dlls": [
+    "KERNEL32.dll",
+    "WININET.dll",
     "advapi32.dll",
     "api-ms-win-core-synch-l1-2-0.dll",
     "bcrypt.dll",
@@ -24,10 +26,10 @@
     "shell32.dll",
     "user32.dll",
     "winhttp.dll",
-    "wininet.dll",
     "ws2_32.dll"
   ],
   "scoop_source_included": false,
   "runtime_manager_script_expansion": false,
-  "tests": "test-results.json"
+  "tests": "test-results.json",
+  "query_benchmark": "query-benchmark.json"
 }

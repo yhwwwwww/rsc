@@ -45,3 +45,7 @@
 ## 文档
 
 [架构](architecture.zh-CN.md) · [命令](cli.zh-CN.md) · [开发](development.zh-CN.md) · [测试](testing.zh-CN.md)
+
+## 输出与查询优化
+
+已实现正文语义颜色、内置 JSON 高亮、限制并发数量的清单读取和状态元数据复用。查询结果一致性核对及耗时见[性能](performance.zh-CN.md)，最新回归结果见[测试](testing.zh-CN.md)。

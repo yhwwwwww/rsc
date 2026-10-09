@@ -182,7 +182,7 @@ pub fn show(out: &Output, result: Outcome) -> Result<bool> {
         );
         out.warnings(&result.warnings);
         for error in &result.errors {
-            eprintln!("error: {error}");
+            out.error(&anyhow::anyhow!("{error}"));
         }
     }
     Ok(result.errors.is_empty())
@@ -317,19 +317,24 @@ pub async fn run(
                         .rows
                         .iter()
                         .map(|v| {
+                            let state = ["failed", "hold", "deprecated", "removed", "outdated"]
+                                .into_iter()
+                                .filter(|key| {
+                                    v[*key].as_bool() == Some(true)
+                                        || v[*key].as_str().is_some_and(|s| !s.is_empty())
+                                })
+                                .collect::<Vec<_>>()
+                                .join(", ");
                             vec![
                                 v["package"].as_str().unwrap_or("-").into(),
                                 v["version"].as_str().unwrap_or("-").into(),
                                 v["latest_version"].as_str().unwrap_or("-").into(),
                                 v["scope"].as_str().unwrap_or("-").into(),
-                                ["failed", "hold", "deprecated", "removed", "outdated"]
-                                    .into_iter()
-                                    .filter(|key| {
-                                        v[*key].as_bool() == Some(true)
-                                            || v[*key].as_str().is_some_and(|s| !s.is_empty())
-                                    })
-                                    .collect::<Vec<_>>()
-                                    .join(", "),
+                                if state.is_empty() {
+                                    "current".into()
+                                } else {
+                                    state
+                                },
                                 v["missing_deps"]
                                     .as_array()
                                     .map(|a| {
@@ -435,11 +440,17 @@ pub async fn run(
                     );
                 } else {
                     for row in rows {
+                        let text = row
+                            .as_str()
+                            .map(str::to_owned)
+                            .unwrap_or_else(|| row.to_string());
                         println!(
                             "{}",
-                            row.as_str()
-                                .map(str::to_owned)
-                                .unwrap_or_else(|| row.to_string())
+                            rsc_core::presentation::paint(
+                                &text,
+                                rsc_core::presentation::state_tone(&text),
+                                rsc_core::presentation::stdout_color()
+                            )
                         );
                     }
                 }
