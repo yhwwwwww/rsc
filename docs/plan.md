@@ -8,7 +8,7 @@ Create a single Windows `rsc.exe` in Rust. The internal library must be statical
 
 Scoop source code is excluded from the repository, executable and published Git history. Reference checkouts and comparison artifacts belong outside the project. PowerShell may execute manifest-supplied hooks and user aliases, through independently written adapters; it is not the manager backend.
 
-The behavioral baseline is [Scoop v0.6.0, commit e6aa3b3](https://github.com/ScoopInstaller/Scoop/tree/e6aa3b366bdee8ed138c1e0f7b85192ebdd35d0f). Manager self-update is excluded. Package updates and bucket synchronization are included.
+The behavioral baseline is [Scoop v0.6.0, commit e6aa3b3](https://github.com/ScoopInstaller/Scoop/tree/e6aa3b366bdee8ed138c1e0f7b85192ebdd35d0f). Scoop's Git-based manager self-update is excluded. Package updates and bucket synchronization are included; rsc itself is distributed as a regular package in kits and upgraded with `rsc update rsc`. See the [README](../README.md#update-rsc) for managed and portable upgrade instructions.
 
 ## Milestones
 

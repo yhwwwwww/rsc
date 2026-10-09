@@ -8,7 +8,7 @@
 
 仓库、程序和发布的 Git 历史均不包含 Scoop 源码。参考仓库和对比资料放在项目外。PowerShell 可执行清单钩子和用户别名，通过自行编写的适配器提供上下文，不充当包管理后端。
 
-行为基线为 [Scoop v0.6.0，提交 e6aa3b3](https://github.com/ScoopInstaller/Scoop/tree/e6aa3b366bdee8ed138c1e0f7b85192ebdd35d0f)。管理器自身升级不在范围内，软件包更新和 bucket 同步包含在内。
+行为基线为 [Scoop v0.6.0，提交 e6aa3b3](https://github.com/ScoopInstaller/Scoop/tree/e6aa3b366bdee8ed138c1e0f7b85192ebdd35d0f)。Scoop 通过 Git 更新管理器自身的流程不在范围内，软件包更新和 bucket 同步包含在内。rsc 自身通过 kits 作为普通软件包分发，使用 `rsc update rsc` 升级。受管理安装与便携版的升级步骤见 [README](../README.zh-CN.md#升级-rsc)。
 
 ## 里程碑
 

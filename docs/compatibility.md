@@ -24,7 +24,7 @@ The standalone native phase removes Scoop manager resources before running. Sour
 
 - Built-in Rust concurrent/segmented downloads replace the downloader backend. Existing aria2 settings are preserved for Scoop, but rsc does not launch aria2.
 - Output uses rsc's tables, progress and diagnostics.
-- Manager self-update is excluded. Software updates and bucket synchronization remain supported.
+- Scoop's Git-based manager self-update is excluded. Software updates and bucket synchronization remain supported. rsc itself uses the ordinary kits package update path; see [Update rsc](../README.md#update-rsc) for installation modes and handling an executable that is in use.
 
 ## Current limits
 

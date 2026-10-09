@@ -24,7 +24,7 @@ rsc 以 [Scoop v0.6.0](https://github.com/ScoopInstaller/Scoop/tree/e6aa3b366bde
 
 - 默认使用 Rust 并发和分段下载。保留 aria2 配置供 Scoop 使用，rsc 不启动 aria2。
 - 输出使用 rsc 的表格、进度和诊断。
-- 管理器自身升级不在范围内，软件更新和 bucket 同步仍受支持。
+- Scoop 通过 Git 更新管理器自身的流程不在范围内，软件更新和 bucket 同步仍受支持。rsc 自身使用 kits 的普通软件包更新流程；安装方式及可执行文件被占用时的处理步骤见[升级 rsc](../README.zh-CN.md#升级-rsc)。
 
 ## 当前限制
 
