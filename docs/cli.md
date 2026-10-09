@@ -66,4 +66,6 @@ Plain queries use case-insensitive regular expressions; SQLite search uses LIKE.
 
 Tables use terminal width, Unicode-aware display widths and semantic color. Names are cyan, versions magenta, healthy states green, attention states yellow, failures red, and secondary paths/sources dim. Mixed states keep their own colors. `cat` highlights JSON keys, strings, numbers, literals and punctuation internally; setting `cat_style` retains the optional bat viewer. Redirected output and `NO_COLOR` disable dynamic/color formatting. Diagnostics and download progress go to stderr; paths, manifests and Scoopfiles are suitable for stdout redirection.
 
+`status` keeps its report on stdout: expected bucket updates are summarized before the package table, and check warnings are grouped afterward under `Checks needing attention`. Fatal errors still use stderr. This preserves report order even when a shell merges streams.
+
 Failed commands return nonzero. VirusTotal reserves 2 for unsafe reports, 4 for request errors, 8 for unresolved manifests and 16 for a missing API key; report failures may combine these bits.

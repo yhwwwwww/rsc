@@ -6,9 +6,9 @@
 
 Windows 11, GNU x64 release build, 16 logical processors. The same local Scoop installation contains 5 buckets and 5,189 manifests. SQLite search is disabled. Both programs read the same bucket directories; Hok search uses `-B` to include executable aliases.
 
-Each result is the median of 7 runs after one warmup. Timings include process creation and captured stdout. These are measurements with a warm filesystem cache, not cold-disk or terminal redraw benchmarks. Executable hashes, versions and every sample are in [query-benchmark.json](query-benchmark.json).
+Each result is the median of 7 runs after one warmup. Timings include process creation and captured stdout. These are measurements with a warm filesystem cache, not cold-disk or terminal redraw benchmarks. Executable hashes, versions and every sample are in [query-benchmark.json](query-benchmark.json). These samples identify the performance optimization release; the later status report fix displays bucket updates as a summary instead of warnings.
 
-| Command | Previous rsc | Current rsc | Hok |
+| Command | Previous rsc | Optimized rsc | Hok |
 | --- | ---: | ---: | ---: |
 | `search jq` | 575.9 ms | 90.0 ms | 97.2 ms |
 | `search ^git` | 631.1 ms | 109.0 ms | 115.4 ms |

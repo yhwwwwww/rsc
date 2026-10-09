@@ -27,6 +27,14 @@ pub struct Outcome {
     pub warnings: Vec<String>,
     pub errors: Vec<String>,
 }
+/// Status notices are report data; bucket updates are expected, not diagnostics.
+#[derive(Default)]
+pub struct StatusOutcome {
+    pub rows: Vec<Value>,
+    pub bucket_updates: Vec<String>,
+    pub warnings: Vec<String>,
+    pub errors: Vec<String>,
+}
 pub fn lock(config: &Config, name: &str, global: bool) -> Result<FileLock> {
     util::valid_name(name)?;
     FileLock::acquire(
@@ -721,8 +729,8 @@ pub fn sync(config: &Config) -> Result<Outcome> {
     }
     Ok(outcome)
 }
-pub fn statuses(config: &Config, local: bool) -> Result<Outcome> {
-    let mut outcome = Outcome::default();
+pub fn statuses(config: &Config, local: bool) -> Result<StatusOutcome> {
+    let mut outcome = StatusOutcome::default();
     if !local {
         let buckets = bucket::inventory(&config.layout.buckets())?
             .into_iter()
@@ -742,9 +750,7 @@ pub fn statuses(config: &Config, local: bool) -> Result<Outcome> {
         });
         for (name, check) in checks {
             match check {
-                Ok(true) => outcome
-                    .warnings
-                    .push(format!("Bucket {name} has updates; run rsc update")),
+                Ok(true) => outcome.bucket_updates.push(name),
                 Err(e) => outcome.warnings.push(format!("{name}: {e:#}")),
                 _ => {}
             }
@@ -753,6 +759,11 @@ pub fn statuses(config: &Config, local: bool) -> Result<Outcome> {
     let installed = package::list(&config.layout, false)?;
     let states = native::query::statuses(config, &installed)?;
     for (p, status) in installed.iter().zip(&states) {
+        if let Some(warning) = status["source_warning"].as_str() {
+            outcome
+                .warnings
+                .push(format!("{} ({}): {warning}", p.name, p.scope));
+        }
         let mut row = status.clone();
         row["package"] = json!(p.name);
         row["scope"] = json!(p.scope);

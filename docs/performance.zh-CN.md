@@ -6,7 +6,7 @@
 
 Windows 11，GNU x64 release 构建，16 个逻辑处理器。本机同一份 Scoop 安装包含 5 个 bucket、5,189 份清单，关闭 SQLite 搜索。两者读取相同的 bucket 目录；Hok 搜索使用 `-B`，把二进制别名纳入搜索。
 
-每项先预热一次，再执行 7 次取中位数。耗时包含启动进程和捕获 stdout。这是文件系统缓存已预热的测量，不是冷磁盘或终端重绘测试。程序版本、校验值和每次样本见 [query-benchmark.json](query-benchmark.json)。
+每项先预热一次，再执行 7 次取中位数。耗时包含启动进程和捕获 stdout。这是文件系统缓存已预热的测量，不是冷磁盘或终端重绘测试。程序版本、校验值和每次样本见 [query-benchmark.json](query-benchmark.json)。这些样本对应性能优化发布版；后续 status 报告修复已将 bucket 更新改为汇总提示。
 
 | 命令 | 优化前 rsc | 优化后 rsc | Hok |
 | --- | ---: | ---: | ---: |

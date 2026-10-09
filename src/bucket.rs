@@ -224,6 +224,13 @@ impl Resolver {
         Ok(Self { files })
     }
     pub(crate) fn resolve(&self, input: &str) -> Result<Resolved> {
+        let (package, warning) = self.resolve_report(input)?;
+        if let Some(warning) = warning {
+            crate::presentation::warning(&warning);
+        }
+        Ok(package)
+    }
+    pub(crate) fn resolve_report(&self, input: &str) -> Result<(Resolved, Option<String>)> {
         let spec = PackageSpec::parse(input)?;
         let candidates = self
             .files
@@ -241,12 +248,8 @@ impl Resolver {
                 "Package {input} was not found. Check rsc bucket or provide a manifest file / URL."
             )
         })?;
-        if candidates.len() > 1 {
-            crate::presentation::warning(&format!(
-                "multiple buckets contain {input}; using {b}/{}",
-                spec.name
-            ));
-        }
+        let warning = (candidates.len() > 1)
+            .then(|| format!("multiple buckets contain {input}; using {b}/{}", spec.name));
         let manifest = Manifest::read(path)?;
         if let Some(version) = spec.version {
             if manifest.version()? != version {
@@ -256,16 +259,19 @@ impl Resolver {
                 );
             }
         }
-        Ok(Resolved {
-            name: path
-                .file_stem()
-                .context("Manifest has no filename")?
-                .to_string_lossy()
-                .into_owned(),
-            bucket: Some(b.clone()),
-            source: path.display().to_string(),
-            manifest,
-        })
+        Ok((
+            Resolved {
+                name: path
+                    .file_stem()
+                    .context("Manifest has no filename")?
+                    .to_string_lossy()
+                    .into_owned(),
+                bucket: Some(b.clone()),
+                source: path.display().to_string(),
+                manifest,
+            },
+            warning,
+        ))
     }
 }
 pub fn resolve(root: &Path, input: &str) -> Result<Resolved> {

@@ -189,6 +189,9 @@ pub fn get(c: &Config, url: &str) -> Result<String> {
     Ok(text.trim_start_matches('\u{feff}').into())
 }
 pub fn resolve(c: &Config, d: &Value) -> Result<Value> {
+    resolve_report(c, d, true)
+}
+fn resolve_report(c: &Config, d: &Value, emit_warning: bool) -> Result<Value> {
     let input = d["input"].as_str().context("Package missing")?;
     if input.starts_with("https://") || input.starts_with("http://") {
         let name = Path::new(&filename(input)?)
@@ -213,7 +216,12 @@ pub fn resolve(c: &Config, d: &Value) -> Result<Value> {
         .as_ref()
         .map(|b| format!("{b}/{}", spec.name))
         .unwrap_or(spec.name.clone());
-    let p = bucket::resolve(&c.layout.buckets(), &base)?;
+    let (p, warning) = bucket::Resolver::new(&c.layout.buckets())?.resolve_report(&base)?;
+    if emit_warning {
+        if let Some(warning) = &warning {
+            crate::presentation::warning(warning);
+        }
+    }
     let mut source = p.source;
     let mut m = p.manifest;
     if let Some(version) = spec
@@ -268,9 +276,13 @@ pub fn resolve(c: &Config, d: &Value) -> Result<Value> {
             .join(format!("{}@{version}.json", p.name));
         util::write_json(&path, &m.raw)?;
         source = path.to_string_lossy().into_owned();
-        return Ok(json!({"name":p.name,"bucket":null,"source":source,"manifest":m.raw}));
+        return Ok(
+            json!({"name":p.name,"bucket":null,"source":source,"manifest":m.raw,"source_warning":warning}),
+        );
     }
-    Ok(json!({"name":p.name,"bucket":p.bucket,"source":source,"manifest":m.raw}))
+    Ok(
+        json!({"name":p.name,"bucket":p.bucket,"source":source,"manifest":m.raw,"source_warning":warning}),
+    )
 }
 fn substitute(s: &str, version: &str, url: Option<&str>) -> String {
     let mut vars = vec![
@@ -397,7 +409,10 @@ fn statuses_for(
             .as_ref()
             .map(|b| format!("{b}/{}", p.name))
             .unwrap_or_else(|| p.name.clone());
-        if let Ok(latest) = resolver.resolve(&source) {
+        if let Ok((latest, warning)) = resolver.resolve_report(&source) {
+            if let Some(warning) = warning {
+                row["source_warning"] = json!(warning);
+            }
             let m = latest.manifest;
             let v = m.version()?;
             row["latest_version"] = json!(v);
@@ -424,7 +439,10 @@ fn statuses_for(
             ))
             .unwrap_or(Value::Null);
             if let Some(source) = info["url"].as_str() {
-                if let Ok(latest) = resolve(c, &json!({"input":source})) {
+                if let Ok(latest) = resolve_report(c, &json!({"input":source}), false) {
+                    if latest["source_warning"].is_string() {
+                        row["source_warning"] = latest["source_warning"].clone();
+                    }
                     let v = latest["manifest"]["version"].as_str().unwrap_or("");
                     row["latest_version"] = json!(v);
                     row["outdated"] = json!(p.version.as_deref() != Some(v));

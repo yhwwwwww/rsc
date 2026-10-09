@@ -302,8 +302,13 @@ pub async fn run(
         Command::Status { local } => {
             let result = manager::statuses(config, local)?;
             if out.json {
-                out.data(&result.rows, &result.warnings, &result.errors)?;
+                out.data(
+                    &json!({"packages":result.rows,"bucket_updates":result.bucket_updates}),
+                    &result.warnings,
+                    &result.errors,
+                )?;
             } else {
+                out.status_updates(&result.bucket_updates);
                 out.table(
                     &[
                         "Package",
@@ -348,7 +353,7 @@ pub async fn run(
                         })
                         .collect(),
                 );
-                out.warnings(&result.warnings);
+                out.status_diagnostics(&result.warnings, &result.errors);
             }
             return Ok(result.errors.is_empty());
         }

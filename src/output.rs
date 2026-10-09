@@ -166,6 +166,43 @@ impl Output {
             }
         }
     }
+    /// All status report sections use stdout so terminal stream merging cannot
+    /// insert diagnostic lines into the installed-package table.
+    pub fn status_updates(&self, buckets: &[String]) {
+        if buckets.is_empty() {
+            return;
+        }
+        println!(
+            "{}  {}",
+            paint("Bucket updates available", Tone::Warning, self.color),
+            paint(&buckets.join(", "), Tone::Primary, self.color)
+        );
+        println!(
+            "{}\n",
+            paint(
+                "Run rsc update to refresh bucket manifests.",
+                Tone::Secondary,
+                self.color
+            )
+        );
+    }
+    pub fn status_diagnostics(&self, warnings: &[String], errors: &[String]) {
+        if warnings.is_empty() && errors.is_empty() {
+            return;
+        }
+        println!(
+            "\n{}",
+            paint("Checks needing attention", Tone::Warning, self.color)
+        );
+        for (messages, tone) in [(warnings, Tone::Warning), (errors, Tone::Error)] {
+            for message in messages {
+                let clean = console::strip_ansi_codes(message).replace('\r', "");
+                for line in clean.lines() {
+                    println!("  {}", paint(line, tone, self.color));
+                }
+            }
+        }
+    }
     pub fn warnings(&self, warnings: &[String]) {
         for warning in warnings {
             presentation::warning(warning);

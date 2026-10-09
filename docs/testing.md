@@ -10,7 +10,9 @@ The independent Rust version is tested on Windows with a GNU x64 toolchain. The 
 
 ## Latest result
 
-The native release passed **29 Rust tests and 33 Windows integration groups**, with no failures. The locally installed program was replaced with this release and its checksum matches the distribution artifact.
+The performance optimization release passed **29 Rust tests and 33 Windows integration groups**, with no failures. Its binary checksum is preserved in [test-results.json](test-results.json).
+
+The later status report fix was built and manually inspected on the live installation: bucket update notices precede the package table, with no stderr warnings for those notices. This inspection does not replace the completed full suite. [build-info.json](build-info.json) identifies the newer artifact and the full suite's baseline.
 
 ## Run
 
