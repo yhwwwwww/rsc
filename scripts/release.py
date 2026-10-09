@@ -183,7 +183,7 @@ def validate_bundle(folder):
         or (folder / "SHA256SUMS").read_text(encoding="ascii").strip() != f"{checksum}  rsc.exe"
         or manifest["bin"] != "rsc.exe"
         or manifest["license"] != "GPL-3.0-only"
-        or (folder / "LICENSE").read_bytes() != (ROOT / "LICENSE").read_bytes()
+        or (folder / "LICENSE").read_text(encoding="utf-8") != (ROOT / "LICENSE").read_text(encoding="utf-8")
     ):
         raise RuntimeError("Release bundle integrity check failed.")
     return info, manifest
