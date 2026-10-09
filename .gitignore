@@ -7,3 +7,7 @@
 /.test-lab/
 __pycache__/
 *.pyc
+
+# Local publishing notes; release instructions live in README and development docs.
+/docs/releasing.md
+/docs/releasing.zh-CN.md

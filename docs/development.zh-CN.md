@@ -55,3 +55,15 @@ native 阶段移除参考管理器资源后测试 rsc。对照阶段调用本机
 构建 release 程序后执行 `python scripts/benchmark_queries.py after hok`，可通过 `--before` 传入可选的旧程序。测量方式和原始记录见[性能](performance.zh-CN.md)。
 
 比较已安装命令的搜索速度时，执行 `.\scripts\benchmark_search.ps1`，使用五次预热和二十次运行，对比 rsc、Hok 默认/二进制搜索及 Scoop。只读核对 Scoop 搜索结果使用 `python tests/search_scoop.py`。
+
+## GitHub Actions 发布
+
+打开 [Actions → Release](https://github.com/yhwwwwww/rsc/actions/workflows/release.yml)，点击 **Run workflow**，选择 **main** 并运行。版本从 `Cargo.toml` 读取，使用稳定版 `MAJOR.MINOR.PATCH`。下次发布前，同时修改 `Cargo.toml` 和 `Cargo.lock` 中根软件包的版本并推送。
+
+三个任务分别用 MSVC 和静态 CRT 编译 Windows x64、发布 GitHub Release、更新[独立 Scoop bucket](https://github.com/yhwwwwww/scoop-bucket)。附件包括 `rsc.exe`、`rsc.json`、`SHA256SUMS`、`LICENSE` 和 `build-info.json`。打包时检查程序版本与源码版本一致、仅依赖 Windows 系统 DLL、清单哈希与程序一致。工作流负责构建和打包；行为验收仍以另行记录的测试结果为准。
+
+只有发布任务拥有本仓库的 `contents: write` 权限。bucket 任务使用 `SCOOP_BUCKET_DEPLOY_KEY`，其中存放专用 SSH 私钥；公钥在 `yhwwwwww/scoop-bucket` 上配置为可写部署密钥，不能写入其他仓库。官方 Actions 固定到具体提交。
+
+Release 先创建为草稿，附件上传完成后再公开发布。bucket 更新会下载发布的程序并校验哈希。已发布版本不会覆盖，旧版本不能回退 bucket。只有 bucket 任务失败时，在 Actions 运行页面重跑该失败任务即可，不要为相同版本重新运行完整发布。草稿可在同一源码提交上重试。
+
+工作流必须位于默认的 `main` 分支，GitHub 才显示手动运行按钮。两份本地 `docs/releasing*.md` 说明有意排除在 Git 管理之外。

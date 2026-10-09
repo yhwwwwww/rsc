@@ -23,7 +23,16 @@ rsc 是独立实现，项目不包含 Scoop 源码，也不会展开或运行 Sc
 
 ## 安装与发布
 
-便携安装、本地 Scoop 安装及 GitHub Release 发布步骤见[发布与安装](docs/releasing.zh-CN.md)。发布下载命令需要先上传对应的 Release 文件。
+通过 [rsc Scoop bucket](https://github.com/yhwwwwww/scoop-bucket) 安装：
+
+```powershell
+scoop bucket add rsc https://github.com/yhwwwwww/scoop-bucket
+scoop install rsc/rsc
+```
+
+升级时先执行 `scoop update`，再执行 `scoop update rsc`。也可以从 [Releases](https://github.com/yhwwwwww/rsc/releases) 下载 `rsc.exe`，将其目录加入用户 PATH。干净 Windows 环境的 bucket 操作仍需要 Git；运行时无需预装 Scoop 或 Rust。
+
+维护者在 **Actions → Release → Run workflow → main** 发布。工作流编译 Windows x64，发布 `Cargo.toml` 中的版本，并更新独立 bucket。发布新版本前修改 `Cargo.toml` 和 `Cargo.lock`。配置与故障恢复见[构建与开发](docs/development.zh-CN.md#github-actions-发布)。
 
 ## 构建
 
@@ -64,7 +73,6 @@ rsc 使用 Scoop 的配置和目录结构，能发现本机已有的 Scoop 安�
 - [命令选项核对](docs/cli-options.zh-CN.md)
 - [兼容状态](docs/compatibility.zh-CN.md)
 - [构建与开发](docs/development.zh-CN.md)
-- [发布与安装](docs/releasing.zh-CN.md)
 - [测试与结果](docs/testing.zh-CN.md)
 - [查询性能](docs/performance.zh-CN.md)
 

@@ -55,3 +55,15 @@ Tests restore the relevant user environment registry values and verify that the 
 Run `python scripts/benchmark_queries.py after hok` after building the release executable. The optional previous executable can be passed with `--before`. See [Performance](performance.md) for methodology and raw records.
 
 For the installed search comparison, run `.\scripts\benchmark_search.ps1`. It uses five warmups and twenty runs of rsc, Hok's default and binary search, and Scoop. The read-only Scoop result comparison is `python tests/search_scoop.py`.
+
+## GitHub Actions release
+
+Open [Actions → Release](https://github.com/yhwwwwww/rsc/actions/workflows/release.yml), click **Run workflow**, select **main**, and run it. The workflow reads the stable `MAJOR.MINOR.PATCH` version from `Cargo.toml`. Update both `Cargo.toml` and the root package entry in `Cargo.lock` and push the version change before the next release.
+
+Three jobs build Windows x64 with MSVC and a static CRT, publish a GitHub Release, and update [the separate Scoop bucket](https://github.com/yhwwwwww/scoop-bucket). Published assets are `rsc.exe`, `rsc.json`, `SHA256SUMS`, `LICENSE`, and `build-info.json`. Packaging checks that the executable version matches the source version, imports only Windows system DLLs, and has the manifest checksum. This workflow builds and packages; the separately documented test suite records behavioral validation.
+
+Only the publishing job has `contents: write` for this repository. The bucket job uses `SCOOP_BUCKET_DEPLOY_KEY`, an Actions secret holding a dedicated SSH private key. Its public key is configured as a write-enabled deploy key on `yhwwwwww/scoop-bucket`. The key cannot write to other repositories. Official actions are pinned to commits.
+
+The release is initially a draft; assets are uploaded before publication. Bucket updates verify the downloaded release binary against the checksum. Published versions are not overwritten and older versions cannot downgrade the bucket. If only the bucket job fails, rerun that failed job from the Actions run; do not start a new full release for the same version. A draft can be retried from the same source commit.
+
+The workflow must remain on the default `main` branch for GitHub's manual-run button. The two local `docs/releasing*.md` notes are intentionally excluded from Git.

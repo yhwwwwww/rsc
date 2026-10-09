@@ -23,7 +23,16 @@ This is an early release. Tested behavior and remaining validation work are desc
 
 ## Install and publish
 
-See [Publishing and installation](docs/releasing.md) for portable installation, local Scoop installation, and GitHub Release instructions. Release assets must be published before the release download commands can be used.
+Install through the [rsc Scoop bucket](https://github.com/yhwwwwww/scoop-bucket):
+
+```powershell
+scoop bucket add rsc https://github.com/yhwwwwww/scoop-bucket
+scoop install rsc/rsc
+```
+
+Update with `scoop update` followed by `scoop update rsc`. Alternatively, download `rsc.exe` from [Releases](https://github.com/yhwwwwww/rsc/releases) and add its directory to user PATH. A clean Windows machine still needs Git for bucket operations; Scoop itself and Rust are not runtime requirements.
+
+Maintainers publish from **Actions → Release → Run workflow → main**. The workflow builds Windows x64, publishes the version in `Cargo.toml`, and updates the separate bucket. Bump `Cargo.toml` and `Cargo.lock` before publishing a new version. See [Building and development](docs/development.md#github-actions-release) for configuration and recovery.
 
 ## Build
 
@@ -64,7 +73,6 @@ The intended differences are the built-in multithreaded downloader and presentat
 - [Command option audit](docs/cli-options.md)
 - [Compatibility](docs/compatibility.md)
 - [Building and development](docs/development.md)
-- [Publishing and installation](docs/releasing.md)
 - [Tests and results](docs/testing.md)
 - [Query performance](docs/performance.md)
 
