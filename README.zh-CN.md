@@ -21,6 +21,10 @@ rsc 是独立实现，项目不包含 Scoop 源码，也不会展开或运行 Sc
 
 项目仍处于早期阶段。已验证的行为与待验收项见[兼容状态](docs/compatibility.zh-CN.md)和[测试](docs/testing.zh-CN.md)。
 
+## 安装与发布
+
+便携安装、本地 Scoop 安装及 GitHub Release 发布步骤见[发布与安装](docs/releasing.zh-CN.md)。发布下载命令需要先上传对应的 Release 文件。
+
 ## 构建
 
 需要 Windows Rust 工具链。需要 Git 或解压辅助工具的软件包仍使用相应工具。
@@ -60,6 +64,7 @@ rsc 使用 Scoop 的配置和目录结构，能发现本机已有的 Scoop 安�
 - [命令选项核对](docs/cli-options.zh-CN.md)
 - [兼容状态](docs/compatibility.zh-CN.md)
 - [构建与开发](docs/development.zh-CN.md)
+- [发布与安装](docs/releasing.zh-CN.md)
 - [测试与结果](docs/testing.zh-CN.md)
 - [查询性能](docs/performance.zh-CN.md)
 

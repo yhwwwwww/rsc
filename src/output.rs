@@ -276,7 +276,7 @@ fn installed_cell(installations: &[rsc_core::search::Installation], color: bool)
         .iter()
         .map(|installed| {
             let tone = match installed.state.as_str() {
-                "current" => Tone::Success,
+                "current" => Tone::Installed,
                 "newer" => Tone::Version,
                 "broken" => Tone::Error,
                 _ => Tone::Warning,
@@ -346,9 +346,8 @@ fn cell(header: &str, value: &str, color: bool, attention: bool, command: &str) 
         }
         "available" | "latest version" if attention => Tone::Warning,
         "available" | "latest version" => Tone::Success,
-        "version" | "installed" | "installed version" | "size" | "files" | "manifests" => {
-            Tone::Version
-        }
+        "installed" | "installed version" => Tone::Installed,
+        "version" | "size" | "files" | "manifests" => Tone::Version,
         "dependencies" if command == "status" => Tone::Error,
         "notes" | "warning" => Tone::Warning,
         "hash" => presentation::state_tone(value),
@@ -367,7 +366,7 @@ fn cell(header: &str, value: &str, color: bool, attention: bool, command: &str) 
                 if let Some((version, suffix)) = value.split_once(" (") {
                     format!(
                         "{} {}",
-                        paint(version, tone, color),
+                        paint(version, Tone::Installed, color),
                         paint(&format!("({suffix}"), Tone::Secondary, color)
                     )
                 } else {
@@ -616,8 +615,8 @@ mod tests {
             console::strip_ansi_codes(&colored),
             "2.0 (global) | 1.9 (user) [held]"
         );
-        assert!(colored.contains("\x1b[32m2.0") && colored.contains("\x1b[33m1.9"));
-        assert!(!colored.contains("\x1b[32mglobal") && !colored.contains("\x1b[33muser"));
+        assert!(colored.contains("\x1b[34m2.0") && colored.contains("\x1b[33m1.9"));
+        assert!(!colored.contains("\x1b[34mglobal") && !colored.contains("\x1b[33muser"));
         assert_eq!(
             installed_cell(&installs, false),
             "2.0 (global) | 1.9 (user) [outdated, held]"
@@ -639,7 +638,7 @@ mod tests {
         assert!(primary.contains("\x1b[38;5;13m") && !primary.contains("38;5;117"));
         assert!(bucket.contains("\x1b[32m") && !bucket.contains("\x1b[2m"));
         let version = cell("Installed", "2.48.1 (user)", true, false, "info");
-        assert!(version.contains("\x1b[35m2.48.1") && !version.contains("\x1b[35m(user)"));
+        assert!(version.contains("\x1b[34m2.48.1") && !version.contains("\x1b[34m(user)"));
         assert_eq!(console::strip_ansi_codes(&version), "2.48.1 (user)");
         for width in [40, 80, 120] {
             for known in [false, true] {

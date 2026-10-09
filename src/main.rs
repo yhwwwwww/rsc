@@ -41,7 +41,7 @@ enum Command {
     Manage(commands::Command),
     /// Search local bucket names and executable aliases
     #[command(
-        long_about = "Search names and top-level executable aliases, using a case-insensitive regex by default (Scoop behavior). Installed version colors: green = current, yellow = outdated/unknown, magenta = newer, red = broken.",
+        long_about = "Search names and top-level executable aliases, using a case-insensitive regex by default (Scoop behavior). Installed version colors: blue = current, yellow = outdated/unknown, magenta = newer, red = broken.",
         after_help = "Examples:\n  rsc search git\n  rsc search '^git$'\n  rsc search -N git\n  rsc search -e 'c++'\n  rsc search -D editor\n\nSearch options apply to local buckets. Omit QUERY to list all packages."
     )]
     Search {

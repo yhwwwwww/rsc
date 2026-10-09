@@ -1,12 +1,12 @@
 {
   "schema": 1,
-  "date": "2026-10-09T22:48:25.477881+08:00",
+  "date": "2026-10-09T23:11:03.750577+08:00",
   "version": "0.1.0",
   "profile": "release",
   "target": "x86_64-pc-windows-gnu",
   "rustc": "1.99.0 (b940084d7 2026-09-28)",
   "bytes": 9818624,
-  "sha256": "26954e19c289b05d86c2f1370b0050f55566402d76011a07fa95df6fa9e06925",
+  "sha256": "9dc15b176bd4e03523140b8f155cfd73a666b557565e1259922b914301cc7425",
   "artifact": "dist/rsc.exe",
   "core_library": "statically linked rlib",
   "sqlite": "bundled",
@@ -34,5 +34,6 @@
   "query_benchmark": "query-benchmark.json",
   "tests_binary_sha256": "26954e19c289b05d86c2f1370b0050f55566402d76011a07fa95df6fa9e06925",
   "search_benchmark": "search-benchmark.json",
-  "cli_benchmark": "cli-benchmark.json"
+  "cli_benchmark": "cli-benchmark.json",
+  "validation_note": "Installed-version color change: release build completed. Full suite and benchmark records retain the checksums of their separately validated binaries."
 }

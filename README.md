@@ -21,6 +21,10 @@ rsc is an independent implementation. It contains no Scoop source code and does 
 
 This is an early release. Tested behavior and remaining validation work are described in [Compatibility](docs/compatibility.md) and [Testing](docs/testing.md).
 
+## Install and publish
+
+See [Publishing and installation](docs/releasing.md) for portable installation, local Scoop installation, and GitHub Release instructions. Release assets must be published before the release download commands can be used.
+
 ## Build
 
 Requires a Windows Rust toolchain. Git and archive helpers are needed by packages that use them.
@@ -60,6 +64,7 @@ The intended differences are the built-in multithreaded downloader and presentat
 - [Command option audit](docs/cli-options.md)
 - [Compatibility](docs/compatibility.md)
 - [Building and development](docs/development.md)
+- [Publishing and installation](docs/releasing.md)
 - [Tests and results](docs/testing.md)
 - [Query performance](docs/performance.md)
 
