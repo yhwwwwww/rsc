@@ -20,6 +20,8 @@ try {
     $python=(Get-Command python -ErrorAction Stop).Source
     $cargo=(Get-Command cargo -ErrorAction Stop).Source
     $rustc=(Get-Command rustc -ErrorAction Stop).Source
+    & $python (Join-Path $PSScriptRoot 'version.py') --sync | Out-Null
+    if($LASTEXITCODE -ne 0) { throw 'Cannot synchronize the Git version.' }
     & $cargo test --locked
     if($LASTEXITCODE -ne 0) { throw 'Rust regression tests failed.' }
     if(!$SkipBuild) { & (Join-Path $PSScriptRoot 'build.ps1') -Profile release }

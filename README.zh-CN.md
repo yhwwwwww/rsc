@@ -4,6 +4,10 @@
 
 用 Rust 编写的 Windows 包管理器，兼容 Scoop 的命令、配置、清单和安装目录。
 
+`rsc` 是 **Rust Scoop** 的缩写，使用缩写是为了在命令行中少打几个字。
+
+项目的目标是完整兼容 Scoop 的行为。目前仅测试了作者个人常用的功能，尚未覆盖 Scoop 的全部功能和所有软件清单。
+
 **单个可执行文件，内置多线程下载，清晰且丰富的彩色输出。**
 
 rsc 可以共用已有的 Scoop 安装，也可以从独立的 `rsc.exe` 开始使用。它是独立实现，不包含 Scoop 源码；内部库静态链接到可执行文件中。
@@ -129,7 +133,7 @@ rsc import scoopfile.json
 rsc update rsc
 ```
 
-这个命令会同步 bucket 并升级已安装的 rsc 软件包，无需另外执行 `scoop update`。
+这个命令会同步 bucket 并升级已安装的 rsc 软件包，无需另外执行 `scoop update`。如果旧发行版显示的版本号只有 `0.1.0`，首次改用 Git 版本格式时，请执行一次 `rsc update -f rsc`。
 
 如果 Windows 提示 rsc 正在运行或可执行文件被占用，请从 [Releases](https://github.com/yhwwwwww/rsc/releases/latest) 下载另一份便携版，放在受管理的安装目录之外。在它所在的文件夹中打开终端，执行：
 
@@ -177,7 +181,7 @@ rsc 读取 Scoop 的配置，并使用相同的软件目录结构。默认设置
 
 ## 从源码构建
 
-需要 Windows Rust 工具链：
+需要 Windows Rust 工具链、带有仓库标签的 Git，以及 Python 3.11 或更新版本：
 
 ```powershell
 .\scripts\build.ps1

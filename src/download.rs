@@ -154,7 +154,7 @@ impl Downloader {
             .user_agent(
                 config
                     .text("user_agent")?
-                    .unwrap_or_else(|| format!("rsc/{}", env!("CARGO_PKG_VERSION"))),
+                    .unwrap_or_else(|| format!("rsc/{}", env!("RSC_GIT_VERSION"))),
             )
             .connect_timeout(Duration::from_secs(timeout.min(30)))
             .read_timeout(Duration::from_secs(timeout))

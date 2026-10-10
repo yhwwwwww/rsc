@@ -4,7 +4,7 @@
 
 ## 环境
 
-需要 Windows 和 Rust 工具链。bucket 使用 Git，软件包所需解压工具从软件目录或 PATH 查找。集成测试使用 Python 3。对照测试需要已安装 Scoop，rsc 本身不依赖 Scoop。
+构建脚本需要 Windows、Rust 工具链、带有完整标签历史的 Git，以及 Python 3.11 或更新版本。bucket 也使用 Git，软件包所需解压工具从软件目录或 PATH 查找。版本同步、发布打包和集成测试使用 Python。对照测试需要已安装 Scoop，rsc 本身不依赖 Scoop。
 
 工程声明 Rust 1.85 为源码语言最低版本，实际验证的编译器及目标见 [build-info.json](build-info.json)。最低工具链和其他目标需分别验证。
 
@@ -24,6 +24,16 @@
 准备脚本下载 Rust 和编译工具，仅用于开发，不是运行组件。
 
 发布文件为 `dist\rsc.exe`。`rsc_core` 使用 `crate-type = ["rlib"]`。SQLite 内置，Windows CRT 配置为静态链接。发布程序的导入表应只有 Windows 系统 DLL。
+
+## Git 版本联动
+
+版本唯一来源是 `git describe --tags`。`rsc --version` 和下载请求中的程序标识都内置完整结果，例如 `v0.1.0-3-gabcdef0`。构建时需要 Git；运行时打印版本号无需 Git。
+
+`scripts/build.ps1` 会在 Cargo 之前执行 `scripts/version.py --sync`，自动同步 `Cargo.toml` 和 `Cargo.lock` 中根软件包的版本。为符合 Cargo 的 SemVer 格式，仅去掉前导 `v`，无需手动修改这两个文件。请通过构建脚本编译，确保 Cargo 读取前完成元数据同步。测试脚本也会执行相同同步。
+
+`build.rs` 嵌入 Git 描述，并跟踪 Git 引用，使提交或标签变化后重新构建能更新运行时版本。源码仓库必须有可达的版本标签；浅克隆需要补齐历史和标签。标签应使用 SemVer 名称，通常为 `v主版本.次版本.修订版本`。
+
+例如，在 `v0.1.0` 之后提交三次的构建会显示 `v0.1.0-3-gabcdef0`，Cargo 使用 `0.1.0-3-gabcdef0`。如果需要有明确名称的稳定版本，在准备发布的 main 提交上创建并推送 Git 标签，下次构建会自动使用该标签。
 
 ## 测试
 
@@ -58,12 +68,12 @@ native 阶段移除参考管理器资源后测试 rsc。对照阶段调用本机
 
 ## GitHub Actions 发布
 
-打开 [Actions → Release](https://github.com/yhwwwwww/rsc/actions/workflows/release.yml)，点击 **Run workflow**，选择 **main** 并运行。版本从 `Cargo.toml` 读取，使用稳定版 `MAJOR.MINOR.PATCH`。下次发布前，同时修改 `Cargo.toml` 和 `Cargo.lock` 中根软件包的版本并推送。
+打开 [Actions → Release](https://github.com/yhwwwwww/rsc/actions/workflows/release.yml)，点击 **Run workflow**，选择 **main** 并运行。工作流检出完整历史和标签，读取 `git describe --tags`，无需手动修改 Cargo 版本。新提交会产生可发布的 Git 描述；新增 SemVer 标签可以指定有明确名称的版本。
 
-三个任务分别用 MSVC 和静态 CRT 编译 Windows x64、发布 GitHub Release、更新[独立 Scoop bucket](https://github.com/yhwwwwww/kits)。附件包括 `rsc.exe`、`rsc.json`、`SHA256SUMS`、`LICENSE` 和 `build-info.json`。打包时检查程序版本与源码版本一致、仅依赖 Windows 系统 DLL、清单哈希与程序一致。工作流负责构建和打包；行为验收仍以另行记录的测试结果为准。
+三个任务分别用 MSVC 和静态 CRT 编译 Windows x64、发布 GitHub Release、更新[独立 Scoop bucket](https://github.com/yhwwwwww/kits)。附件包括 `rsc.exe`、`rsc.json`、`SHA256SUMS`、`LICENSE` 和 `build-info.json`。同一份固定的 Git 描述用于程序版本、release 标签、构建信息、bucket 清单版本和下载地址；Cargo 使用去掉前导 `v` 后的对应版本。清单的 checkver 读取完整 GitHub release 标签，autoupdate 下载地址直接使用 `$version`，保留提交距离和哈希后缀，并避免重复添加 `v`。打包时检查程序版本、Cargo 元数据同步、Windows 系统 DLL 依赖及清单哈希。工作流负责构建和打包；行为验收仍以另行记录的测试结果为准。
 
 只有发布任务拥有本仓库的 `contents: write` 权限。bucket 任务使用 `SCOOP_BUCKET_DEPLOY_KEY`，其中存放专用 SSH 私钥；公钥在 `yhwwwwww/kits` 上配置为可写部署密钥，不能写入其他仓库。官方 Actions 固定到具体提交。
 
-Release 先创建为草稿，附件上传完成后再公开发布。bucket 更新会下载发布的程序并校验哈希。已发布版本不会覆盖，旧版本不能回退 bucket。只有 bucket 任务失败时，在 Actions 运行页面重跑该失败任务即可，不要为相同版本重新运行完整发布。草稿可在同一源码提交上重试。
+Release 先创建为草稿，附件上传完成后再公开发布。bucket 更新会下载发布的程序并校验哈希。已发布的版本不会被覆盖。通过源码的祖先关系阻止旧提交或无关提交覆盖 bucket；同一版本不能替换成不同的二进制。只有 bucket 任务失败时，在 Actions 运行页面重跑该失败任务即可，不要为相同版本重新运行完整发布。草稿可在同一源码提交上重试。
 
 工作流必须位于默认的 `main` 分支，GitHub 才显示手动运行按钮。两份本地 `docs/releasing*.md` 说明有意排除在 Git 管理之外。

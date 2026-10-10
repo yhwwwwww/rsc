@@ -36,7 +36,7 @@ Commands use Scoop's names and direct style.
 
 `search [query]` follows Scoop's default name and binary search. Without SQLite, it uses a case-insensitive regular expression, searches names and top-level `bin` entries, and displays matched executable filenames or aliases in `Binaries`. A name match leaves that column blank. Architecture-specific `bin` entries and descriptions do not add matches by default. Scoop's raw-content prefilter applies before default binary matching. With SQLite enabled, Scoop's name/binary/shortcut LIKE behavior remains in use.
 
-`Installed` shows the version and scope as `2.48.1 (user)` or `2.48.1 (global)` for the same bucket. The version itself is blue when current, yellow when outdated or unknown, magenta when newer than the manifest, and red when broken. There is no separate state column. Each scope is colored independently; hold and missing-source annotations remain next to the version. Redirected output and `NO_COLOR` use short annotations for non-current states. An installation from a different bucket does not mark a same-name result as installed. Unversioned nightly manifests remain unknown.
+`Installed` shows the version and scope as `2.48.1 (user)` or `2.48.1 (global)` for the same bucket. The version itself is bright blue when current, yellow when outdated or unknown, magenta when newer than the manifest, and red when broken. There is no separate state column. Each scope is colored independently; hold and missing-source annotations remain next to the version. Redirected output and `NO_COLOR` use short annotations for non-current states. An installation from a different bucket does not mark a same-name result as installed. Unversioned nightly manifests remain unknown.
 
 Search options have specific effects:
 
@@ -87,7 +87,7 @@ Plain queries use case-insensitive regular expressions; SQLite search uses LIKE.
 
 ## Output and exit status
 
-Tables respect terminal width and Unicode display widths. Horizontal table headers, vertical detail labels and help headings use light blue exclusively for titles. The first table column uses bold bright magenta for the subject; bucket values use green. Installed versions and scopes are combined as `2.48.1 (user)` in search, list, info, depends and operation summaries. Status retains separate version and scope columns for comparison. Local installed versions use ordinary blue, distinct from the light blue headings. Search uses warning colors for non-current states. Colors stay on the version itself; scope suffixes are dim.
+Tables respect terminal width and Unicode display widths. Horizontal table headers, vertical detail labels and help headings use light blue exclusively for titles. The first table column uses bold bright magenta for the subject; bucket values use green. Installed versions and scopes are combined as `2.48.1 (user)` in search, list, info, depends and operation summaries. Status retains separate version and scope columns for comparison. Local installed versions use a brighter, saturated blue, distinct from the pale blue headings. Search uses warning colors for non-current states. Colors stay on the version itself; scope suffixes are dim.
 
 Download progress uses a full-width block bar with a spinner, percentage, transfer rate and precise ETA, adapting to narrow terminals. Unknown sizes use elapsed time instead of a fabricated percentage or ETA. Downloads from manifest creation use the same display. Completed transfers show a concise saved/cached summary.
 

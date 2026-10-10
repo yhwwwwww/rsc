@@ -615,8 +615,8 @@ mod tests {
             console::strip_ansi_codes(&colored),
             "2.0 (global) | 1.9 (user) [held]"
         );
-        assert!(colored.contains("\x1b[34m2.0") && colored.contains("\x1b[33m1.9"));
-        assert!(!colored.contains("\x1b[34mglobal") && !colored.contains("\x1b[33muser"));
+        assert!(colored.contains("\x1b[38;5;75m2.0") && colored.contains("\x1b[33m1.9"));
+        assert!(!colored.contains("\x1b[38;5;75mglobal") && !colored.contains("\x1b[33muser"));
         assert_eq!(
             installed_cell(&installs, false),
             "2.0 (global) | 1.9 (user) [outdated, held]"
@@ -638,7 +638,7 @@ mod tests {
         assert!(primary.contains("\x1b[38;5;13m") && !primary.contains("38;5;117"));
         assert!(bucket.contains("\x1b[32m") && !bucket.contains("\x1b[2m"));
         let version = cell("Installed", "2.48.1 (user)", true, false, "info");
-        assert!(version.contains("\x1b[34m2.48.1") && !version.contains("\x1b[34m(user)"));
+        assert!(version.contains("\x1b[38;5;75m2.48.1") && !version.contains("\x1b[38;5;75m(user)"));
         assert_eq!(console::strip_ansi_codes(&version), "2.48.1 (user)");
         for width in [40, 80, 120] {
             for known in [false, true] {

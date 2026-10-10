@@ -4,7 +4,7 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$variables = @('CARGO_HOME','RUSTUP_HOME','PATH','CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER')
+$variables = @('CARGO_HOME','RUSTUP_HOME','PATH','CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER','RSC_GIT_VERSION')
 $previous = @{}
 foreach ($name in $variables) { $previous[$name] = [Environment]::GetEnvironmentVariable($name, 'Process') }
 try {
@@ -23,6 +23,12 @@ try {
     } else {
         $cargo = (Get-Command cargo -ErrorAction Stop).Source
     }
+    $python = (Get-Command python -ErrorAction Stop).Source
+    $versionJson = & $python (Join-Path $PSScriptRoot 'version.py') --sync
+    if ($LASTEXITCODE -ne 0) { throw 'Cannot derive and synchronize the Git version.' }
+    $versionInfo = $versionJson | ConvertFrom-Json
+    $env:RSC_GIT_VERSION = $versionInfo.version
+    Write-Host ('Building rsc ' + $versionInfo.version)
     $arguments = @('build', '--locked', '--manifest-path', (Join-Path $projectRoot 'Cargo.toml'))
     if ($Profile -eq 'release') { $arguments += '--release' }
     if ($Target) { $arguments += @('--target', $Target) }

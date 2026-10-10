@@ -52,7 +52,7 @@ pub fn transfer(
         }
     }
     let wide = |s: &str| s.encode_utf16().chain(Some(0)).collect::<Vec<_>>();
-    let user_agent = wide(concat!("rsc/", env!("CARGO_PKG_VERSION")));
+    let user_agent = wide(concat!("rsc/", env!("RSC_GIT_VERSION")));
     let credentials = proxy.and_then(|p| p.rsplit_once('@')).map(|(auth, _)| auth);
     let proxy = proxy
         .map(|p| p.rsplit_once('@').map_or(p, |(_, server)| server))

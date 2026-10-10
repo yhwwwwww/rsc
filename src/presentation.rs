@@ -28,7 +28,7 @@ pub fn paint(text: &str, tone: Tone, color: bool) -> String {
         Tone::Primary => s.magenta().bright().bold().to_string(),
         Tone::Bucket => s.green().to_string(),
         Tone::Version => s.magenta().to_string(),
-        Tone::Installed => s.blue().to_string(),
+        Tone::Installed => s.color256(75).to_string(),
         Tone::Success => s.green().to_string(),
         Tone::Warning => s.yellow().to_string(),
         Tone::Error => s.red().bold().to_string(),

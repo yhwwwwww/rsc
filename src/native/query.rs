@@ -376,6 +376,14 @@ pub fn compare(a: &str, b: &str) -> std::cmp::Ordering {
         let y = bb.get(i).copied().unwrap_or("0");
         let order = match (x.parse::<u128>(), y.parse::<u128>()) {
             (Ok(x), Ok(y)) => x.cmp(&y),
+            // Scoop compares present mixed text/number fields as strings.
+            // This keeps legacy numeric versions below Git tags such as v0.1.0.
+            (Ok(x), Err(_)) if i < aa.len() && i < bb.len() => {
+                x.to_string().cmp(&y.to_ascii_lowercase())
+            }
+            (Err(_), Ok(y)) if i < aa.len() && i < bb.len() => {
+                x.to_ascii_lowercase().cmp(&y.to_string())
+            }
             (Ok(_), Err(_)) => std::cmp::Ordering::Greater,
             (Err(_), Ok(_)) => std::cmp::Ordering::Less,
             _ => x.to_lowercase().cmp(&y.to_lowercase()),

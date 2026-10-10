@@ -4,6 +4,10 @@
 
 A Windows package manager written in Rust, with Scoop-compatible commands, configuration, manifests, and installation directories.
 
+`rsc` is short for **Rust Scoop**. The abbreviation keeps commands short and saves typing at the command line.
+
+The goal is full behavioral compatibility with Scoop. Testing so far covers the features the author regularly uses; the complete Scoop feature set and all package manifests have not been tested.
+
 **One executable. Built-in parallel downloads. Clear, colorful output.**
 
 rsc works with an existing Scoop installation or starts from a standalone `rsc.exe`. It is an independent implementation with no Scoop source code; its internal library is statically linked into the executable.
@@ -129,7 +133,7 @@ For rsc installed from kits, including an installation originally made with Scoo
 rsc update rsc
 ```
 
-This synchronizes buckets and upgrades the installed rsc package. A separate `scoop update` command is unnecessary.
+This synchronizes buckets and upgrades the installed rsc package. A separate `scoop update` command is unnecessary. When upgrading an older release that reports only `0.1.0`, use `rsc update -f rsc` once to adopt the Git-derived version format.
 
 If Windows reports that rsc is running or its executable is in use, open a terminal in a folder containing a separate portable copy from [Releases](https://github.com/yhwwwwww/rsc/releases/latest), outside the managed installation, and run:
 
@@ -177,7 +181,7 @@ English documents are primary; each has a Simplified Chinese counterpart. Machin
 
 ## Build from source
 
-Requires a Windows Rust toolchain:
+Requires a Windows Rust toolchain, Git with the repository tags, and Python 3.11 or later:
 
 ```powershell
 .\scripts\build.ps1

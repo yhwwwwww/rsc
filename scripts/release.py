@@ -4,12 +4,14 @@ import hashlib
 import json
 import os
 from pathlib import Path
-import re
 import shutil
 import struct
 import subprocess
 import tempfile
 import tomllib
+from urllib.parse import quote, unquote
+
+from version import cargo_version, describe
 
 ROOT = Path(__file__).resolve().parent.parent
 REPOSITORY = "yhwwwwww/rsc"
@@ -41,9 +43,8 @@ def api(path, missing_ok=False):
     return json.loads(result.stdout)
 
 def version():
-    value = tomllib.loads((ROOT / "Cargo.toml").read_text(encoding="utf-8"))["package"]["version"]
-    if not re.fullmatch(r"(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)", value):
-        raise RuntimeError("Use a stable MAJOR.MINOR.PATCH version in Cargo.toml.")
+    value = os.environ.get("RELEASE_VERSION") or describe()["version"]
+    cargo_version(value)
     return value
 
 def digest(path):
@@ -53,7 +54,7 @@ def write_json(path, value):
     path.write_text(json.dumps(value, indent=4) + "\n", encoding="utf-8")
 
 def release_record(tag):
-    return api(f"repos/{REPOSITORY}/releases/tags/{tag}", missing_ok=True)
+    return api(f"repos/{REPOSITORY}/releases/tags/{quote(tag, safe='')}", missing_ok=True)
 
 def metadata():
     if os.environ.get("GITHUB_ACTIONS") == "true":
@@ -63,12 +64,15 @@ def metadata():
             raise RuntimeError("This publishing workflow is configured for yhwwwwww/rsc.")
         if os.environ.get("BUCKET_KEY_CONFIGURED") != "true":
             raise RuntimeError("SCOOP_BUCKET_DEPLOY_KEY must be configured before publishing.")
-    current = version()
-    tag = f"v{current}"
+    info = describe()
+    current = info["version"]
+    tag = info["tag"]
+    if info["source_commit"] != os.environ["GITHUB_SHA"]:
+        raise RuntimeError("Checked-out source does not match this workflow.")
     existing = release_record(tag)
     if existing and not existing["draft"]:
         raise RuntimeError(
-            f"{tag} is already published. Bump Cargo.toml and Cargo.lock for a new release; "
+            f"{tag} is already published. Select a new source commit or Git version tag; "
             "rerun only a failed bucket job to repair bucket publication."
         )
     if existing and existing["target_commitish"] != os.environ["GITHUB_SHA"]:
@@ -126,10 +130,15 @@ def prepare():
     current = version()
     reported = run(str(binary), "--version")
     if reported != f"rsc {current}":
-        raise RuntimeError(f"Built version does not match Cargo.toml: {reported}")
+        raise RuntimeError(f"Built version does not match the Git description: {reported}")
+    normalized = cargo_version(current)
+    package = tomllib.loads((ROOT / "Cargo.toml").read_text(encoding="utf-8"))["package"]
+    locked = tomllib.loads((ROOT / "Cargo.lock").read_text(encoding="utf-8"))["package"]
+    if package["version"] != normalized or not any(p["name"] == "rsc" and p["version"] == normalized for p in locked):
+        raise RuntimeError("Cargo versions were not synchronized before the build.")
     imports = pe_imports(binary)
     checksum = digest(binary)
-    tag = f"v{current}"
+    tag = current
     source = os.environ.get("GITHUB_SHA") or run("git", "rev-parse", "HEAD", cwd=ROOT)
     manifest = {
         "version": current,
@@ -138,16 +147,19 @@ def prepare():
         "license": "GPL-3.0-only",
         "architecture": {
             "64bit": {
-                "url": f"https://github.com/{REPOSITORY}/releases/download/{tag}/rsc.exe",
+                "url": f"https://github.com/{REPOSITORY}/releases/download/{quote(tag, safe='')}/rsc.exe",
                 "hash": checksum,
             }
         },
         "bin": "rsc.exe",
-        "checkver": {"github": f"https://github.com/{REPOSITORY}"},
+        "checkver": {
+            "url": f"https://api.github.com/repos/{REPOSITORY}/releases/latest",
+            "jsonpath": "$.tag_name",
+        },
         "autoupdate": {
             "architecture": {
                 "64bit": {
-                    "url": f"https://github.com/{REPOSITORY}/releases/download/v$version/rsc.exe"
+                    "url": f"https://github.com/{REPOSITORY}/releases/download/$version/rsc.exe"
                 }
             }
         },
@@ -156,7 +168,7 @@ def prepare():
     (output / "SHA256SUMS").write_text(f"{checksum}  rsc.exe\n", encoding="ascii")
     shutil.copy2(ROOT / "LICENSE", output / "LICENSE")
     write_json(output / "build-info.json", {
-        "version": current, "tag": tag, "source_commit": source,
+        "version": current, "tag": tag, "cargo_version": normalized, "source_commit": source,
         "target": TARGET, "rustc": run("rustc", "--version"),
         "sha256": checksum, "bytes": binary.stat().st_size,
         "imported_dlls": imports, "core_library": "statically linked rlib",
@@ -170,12 +182,13 @@ def validate_bundle(folder):
             raise RuntimeError(f"Missing release asset: {name}")
     info = json.loads((folder / "build-info.json").read_text(encoding="utf-8"))
     manifest = json.loads((folder / "rsc.json").read_text(encoding="utf-8"))
-    if info["version"] != version() or info["tag"] != f"v{version()}":
+    if (info["version"] != version() or info["tag"] != info["version"]
+            or info["cargo_version"] != cargo_version(info["version"])):
         raise RuntimeError("Release version and source version differ.")
     if info["source_commit"] != os.environ["GITHUB_SHA"]:
         raise RuntimeError("Artifact source commit does not match this workflow.")
     checksum = digest(folder / "rsc.exe")
-    expected_url = f"https://github.com/{REPOSITORY}/releases/download/{info['tag']}/rsc.exe"
+    expected_url = f"https://github.com/{REPOSITORY}/releases/download/{quote(info['tag'], safe='')}/rsc.exe"
     if (
         checksum != info["sha256"]
         or manifest["version"] != info["version"]
@@ -183,6 +196,12 @@ def validate_bundle(folder):
         or (folder / "SHA256SUMS").read_text(encoding="ascii").strip() != f"{checksum}  rsc.exe"
         or manifest["bin"] != "rsc.exe"
         or manifest["license"] != "GPL-3.0-only"
+        or manifest["checkver"] != {
+            "url": f"https://api.github.com/repos/{REPOSITORY}/releases/latest",
+            "jsonpath": "$.tag_name",
+        }
+        or manifest["autoupdate"]["architecture"]["64bit"]["url"] !=
+            f"https://github.com/{REPOSITORY}/releases/download/$version/rsc.exe"
         or (folder / "LICENSE").read_text(encoding="utf-8") != (ROOT / "LICENSE").read_text(encoding="utf-8")
     ):
         raise RuntimeError("Release bundle integrity check failed.")
@@ -197,8 +216,8 @@ def publish(folder):
         raise RuntimeError(f"Refusing to replace published assets for {tag}.")
     if existing and existing["target_commitish"] != info["source_commit"]:
         raise RuntimeError("Draft release belongs to a different source commit.")
-    tag_ref = api(f"repos/{REPOSITORY}/git/ref/tags/{tag}", missing_ok=True)
-    tagged = api(f"repos/{REPOSITORY}/commits/{tag}") if tag_ref else None
+    tag_ref = api(f"repos/{REPOSITORY}/git/ref/tags/{quote(tag, safe='')}", missing_ok=True)
+    tagged = api(f"repos/{REPOSITORY}/commits/{quote(tag, safe='')}") if tag_ref else None
     if tagged and tagged["sha"] != info["source_commit"]:
         raise RuntimeError(f"{tag} already points to a different source commit.")
     if not existing:
@@ -215,7 +234,7 @@ def publish(folder):
 def update_bucket(folder, bucket):
     info, manifest = validate_bundle(folder)
     release = release_record(info["tag"])
-    tagged = api(f"repos/{REPOSITORY}/commits/{info['tag']}")
+    tagged = api(f"repos/{REPOSITORY}/commits/{quote(info['tag'], safe='')}")
     if not release or release["draft"] or tagged["sha"] != info["source_commit"]:
         raise RuntimeError("The matching release must be published before updating the bucket.")
     with tempfile.TemporaryDirectory(prefix="rsc-published-") as temporary:
@@ -227,12 +246,24 @@ def update_bucket(folder, bucket):
     target = bucket / "bucket/rsc.json"
     if target.exists():
         previous = json.loads(target.read_text(encoding="utf-8"))
-        old_version = tuple(map(int, previous["version"].split(".")))
-        new_version = tuple(map(int, manifest["version"].split(".")))
-        if old_version > new_version:
-            raise RuntimeError("Refusing to downgrade the bucket.")
-        if old_version == new_version and previous["architecture"]["64bit"]["hash"] != info["sha256"]:
-            raise RuntimeError("Refusing to replace an existing version with a different binary.")
+        if previous["version"] == manifest["version"]:
+            if previous["architecture"]["64bit"]["hash"] != info["sha256"]:
+                raise RuntimeError("Refusing to replace an existing version with a different binary.")
+        else:
+            prefix = f"https://github.com/{REPOSITORY}/releases/download/"
+            old_url = previous["architecture"]["64bit"]["url"]
+            if not old_url.startswith(prefix) or not old_url.endswith("/rsc.exe"):
+                raise RuntimeError("Cannot verify the current bucket release source.")
+            old_tag = unquote(old_url[len(prefix):-len("/rsc.exe")])
+            old_source = api(f"repos/{REPOSITORY}/commits/{quote(old_tag, safe='')}")["sha"]
+            ancestor = subprocess.run(
+                ["git", "merge-base", "--is-ancestor", old_source, info["source_commit"]],
+                cwd=ROOT, capture_output=True, text=True,
+            )
+            if ancestor.returncode == 1:
+                raise RuntimeError("Refusing to downgrade the bucket to an older or unrelated source.")
+            if ancestor.returncode:
+                raise RuntimeError(f"Cannot verify release ancestry: {ancestor.stderr.strip()}")
     target.parent.mkdir(parents=True, exist_ok=True)
     write_json(target, manifest)
     run("git", "config", "user.name", "github-actions[bot]", cwd=bucket)

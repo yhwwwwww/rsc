@@ -8,6 +8,6 @@
 __pycache__/
 *.pyc
 
-# Local publishing notes; release instructions live in README and development docs.
+# Local publishing notes; release instructions live in development docs.
 /docs/releasing.md
 /docs/releasing.zh-CN.md

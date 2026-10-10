@@ -23,7 +23,7 @@ use tokio::{sync::Semaphore, task::JoinSet};
 #[derive(Parser)]
 #[command(
     name = "rsc",
-    version,
+    version = rsc_core::VERSION,
     about = "A single-binary package manager for your Scoop directories",
     after_help = "Scoop-compatible package operations. Built-in parallel downloads."
 )]

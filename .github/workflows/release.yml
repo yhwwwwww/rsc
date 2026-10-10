@@ -23,7 +23,8 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Read version and check publication prerequisites
+          fetch-depth: 0
+      - name: Read Git version and check publication prerequisites
         id: metadata
         shell: pwsh
         env:
@@ -42,6 +43,8 @@ jobs:
         run: .\scripts\build.ps1 -Target x86_64-pc-windows-msvc
       - name: Prepare executable, checksum and Scoop manifest
         shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ steps.metadata.outputs.version }}
         run: python scripts/release.py prepare
       - name: Store release assets
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -69,6 +72,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
       - name: Retrieve release assets
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -77,6 +81,7 @@ jobs:
       - name: Publish verified assets
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
         run: python3 scripts/release.py publish
       - name: Show published release
         env:
@@ -94,6 +99,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
       - name: Retrieve release assets
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -109,6 +115,7 @@ jobs:
       - name: Commit matching manifest to bucket
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
         run: python3 scripts/release.py bucket
       - name: Show installation commands
         run: |

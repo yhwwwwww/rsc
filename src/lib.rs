@@ -1,3 +1,6 @@
+/// Full Git description embedded at build time.
+pub const VERSION: &str = env!("RSC_GIT_VERSION");
+
 pub mod bucket;
 pub mod config;
 pub mod database;
